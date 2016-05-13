@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 int main(int argc, char* argv[]){
 
@@ -15,6 +16,10 @@ int main(int argc, char* argv[]){
   }
 
   do{
+    printf("Vou adormecer\n");
+    //suspends execution of the calling thread for (at least) u_clock*10^3 microseconds.
+    usleep(u_clock*pow(10,3));
+    printf("Vou acordar\n");
     //generateCar();
   time_generation--;
   }while(time_generation>0);
