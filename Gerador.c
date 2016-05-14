@@ -8,6 +8,9 @@
 #include <math.h>
 #include <time.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define FIFO_NAME_LENGTH 10
 #define OK 0
@@ -27,6 +30,26 @@ typedef struct {
 void* func_vehicle(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
   void* ret=NULL;
+  int fd_read, fd_write;
+
+  mkfifo(vehicle.fifo_name, 0660);
+
+  //fd_read = open(vehicle.fifo_name, O_RDONLY);
+
+  switch (vehicle.direction){
+     case NORTH:
+       fd_write = open("fifoN", O_WRONLY);
+       break;
+     case SOUTH:
+        fd_write = open("fifoS", O_WRONLY);
+         break;
+     case EAST:
+        fd_write = open("fifoE", O_WRONLY);
+         break;
+     case WEST:
+        fd_write = open("fifoW", O_WRONLY);
+         break;
+   }
 
   printf("Cheguei à thread!! \n");
  switch (vehicle.direction){
@@ -48,6 +71,7 @@ void* func_vehicle(void* arg){
   printf("Parking time %f\n",vehicle.parking_time);
   printf("Fifo Name %s\n",vehicle.fifo_name);
 
+  write(fd_write, &vehicle, sizeof(Vehicle));
 
   //CRASHA
   //free(&vehicle);
