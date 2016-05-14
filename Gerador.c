@@ -17,6 +17,7 @@
 
 int id=0;
 
+//Direction enums are the four cardinal points of access to the park
 typedef enum {NORTH, SOUTH, EAST, WEST} Direction;
 
 typedef struct {
@@ -54,8 +55,8 @@ void* func_vehicle(void* arg){
   printf("Cheguei à thread!! \n");
  switch (vehicle.direction){
     case NORTH:
-      printf("Direction North \n");
-      break;
+        printf("Direction North \n");
+        break;
     case SOUTH:
         printf("Direction South \n");
         break;
@@ -102,10 +103,13 @@ float get_car_parking_time(float u_clock){
 int get_tick_for_next_car(){
   int r = rand() % 10;
   int ticks_for_next_car;
+  //50% probability
   if(r<5)
     ticks_for_next_car=0;
+  //30% probability
   else if(r<8)
     ticks_for_next_car=1;
+  //20% probability
   else ticks_for_next_car=2;
 
   return ticks_for_next_car;
@@ -120,8 +124,8 @@ int generate_car(float u_clock){
   vehicle->direction=get_car_direction();
   switch (vehicle->direction){
     case NORTH:
-      printf("Direction North \n");
-      break;
+        printf("Direction North \n");
+        break;
     case SOUTH:
         printf("Direction South \n");
         break;
@@ -164,6 +168,7 @@ int main(int argc, char* argv[]){
   printf("total_number_ticks%f\n",total_number_ticks );
   do{
     if(ticks_for_next_car == 0)
+      //Generate one car
       ticks_for_next_car=generate_car(u_clock);
     else ticks_for_next_car--;
     //suspends execution of the calling thread for (at least) u_clock*10^3 microseconds.
