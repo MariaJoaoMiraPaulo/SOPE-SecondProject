@@ -10,6 +10,8 @@
 #include <pthread.h>
 
 #define FIFO_NAME_LENGTH 10
+#define OK 0
+
 int id=0;
 
 typedef enum {NORTH, SOUTH, EAST, WEST} Direction;
@@ -115,7 +117,9 @@ int generate_car(float u_clock){
   printf("Fifo Name %s\n",vehicle->fifo_name);
 
   //Create thread Vehicle
-  pthread_create(&tid,NULL,func_vehicle,vehicle);
+  if(pthread_create(&tid,NULL,func_vehicle,vehicle) != OK){
+    perror("Gerador::Error on creating thread\n");
+  }
 
   return get_tick_for_next_car();
 
@@ -124,7 +128,8 @@ int generate_car(float u_clock){
 int main(int argc, char* argv[]){
 
   srand(time(NULL));
-  float time_generation=atoi(argv[1]),u_clock=atoi(argv[2]);
+  float time_generation=atoi(argv[1]);
+  float u_clock=atoi(argv[2]);
   float total_number_ticks=(time_generation*pow(10,3))/u_clock;
   int ticks_for_next_car=0;
 
@@ -143,5 +148,5 @@ int main(int argc, char* argv[]){
   }while(total_number_ticks>0);
 
   pthread_exit(NULL);
-  return 0;
+  //return 0;
 }
