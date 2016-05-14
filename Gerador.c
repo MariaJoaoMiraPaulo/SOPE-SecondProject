@@ -28,6 +28,7 @@ typedef struct {
 
 }Vehicle;
 
+//Function that the thread with tid executes when is created
 void* func_vehicle(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
   void* ret=NULL;
@@ -166,6 +167,7 @@ int main(int argc, char* argv[]){
   }
 
   printf("total_number_ticks%f\n",total_number_ticks );
+
   do{
     if(ticks_for_next_car == 0)
       //Generate one car
