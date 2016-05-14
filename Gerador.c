@@ -7,6 +7,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <pthread.h>
 
 #define FIFO_NAME_LENGTH 10
 int id=0;
@@ -19,7 +20,38 @@ typedef struct {
   float parking_time;
   char fifo_name[FIFO_NAME_LENGTH] ;
 
-}Vehicles;
+}Vehicle;
+
+void* func_vehicle(void* arg){
+  Vehicle vehicle= *(Vehicle*) arg;
+  void* ret=NULL;
+
+  printf("Cheguei à thread!! \n");
+ switch (vehicle.direction){
+    case NORTH:
+      printf("Direction North \n");
+      break;
+    case SOUTH:
+        printf("Direction South \n");
+        break;
+    case EAST:
+        printf("Direction East \n");
+        break;
+    case WEST:
+        printf("Direction West \n");
+        break;
+  }
+
+  printf("ID %d\n",vehicle.id);
+  printf("Parking time %f\n",vehicle.parking_time);
+  printf("Fifo Name %s\n",vehicle.fifo_name);
+
+
+  //CRASHA
+  //free(&vehicle);
+
+  return ret;
+}
 
 Direction get_car_direction(){
 
@@ -54,10 +86,13 @@ int get_tick_for_next_car(){
 }
 
 int generate_car(float u_clock){
+
+   pthread_t tid;
 //no final da funcao gerar a probabilidade
-  Vehicles vehicle;
-  vehicle.direction=get_car_direction();
-  switch (vehicle.direction){
+  Vehicle *vehicle = (Vehicle*)malloc(sizeof(Vehicle));
+
+  vehicle->direction=get_car_direction();
+  switch (vehicle->direction){
     case NORTH:
       printf("Direction North \n");
       break;
@@ -71,17 +106,18 @@ int generate_car(float u_clock){
         printf("Direction West \n");
         break;
   }
-  vehicle.id=id;
-  printf("ID %d\n",id);
-  vehicle.parking_time=get_car_parking_time(u_clock);
-  printf("Parking time %f\n",vehicle.parking_time);
+  vehicle->id=id;
+  printf("ID %d\n",vehicle->id);
+  vehicle->parking_time=get_car_parking_time(u_clock);
+  printf("Parking time %f\n",vehicle->parking_time);
   id++;
-  sprintf(vehicle.fifo_name,"%s%d","fifo",id);
-  printf("Fifo Name %s\n",vehicle.fifo_name);
+  sprintf(vehicle->fifo_name,"%s%d","fifo",id);
+  printf("Fifo Name %s\n",vehicle->fifo_name);
 
   //Create thread Vehicle
+  pthread_create(&tid,NULL,func_vehicle,vehicle);
 
-return get_tick_for_next_car();
+  return get_tick_for_next_car();
 
 }
 
@@ -106,5 +142,6 @@ int main(int argc, char* argv[]){
     total_number_ticks--;
   }while(total_number_ticks>0);
 
+  pthread_exit(NULL);
   return 0;
 }
