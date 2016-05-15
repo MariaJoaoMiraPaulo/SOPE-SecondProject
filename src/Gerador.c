@@ -33,10 +33,9 @@ void* func_vehicle(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
   void* ret=NULL;
   int fd_read, fd_write;
+  int state;
 
   mkfifo(vehicle.fifo_name, 0660);
-
-  //fd_read = open(vehicle.fifo_name, O_RDONLY);
 
   switch (vehicle.direction){
      case NORTH:
@@ -75,6 +74,10 @@ printf("Cheguei à thread!! \n");
   printf("Aqui\n");
   write(fd_write, &vehicle, sizeof(Vehicle));
   printf("Passei o write\n");
+
+  fd_read = open(vehicle.fifo_name, O_RDONLY);
+  read(fd_read,&state,sizeof(int));
+  printf("Recebi informação:%d\n",state);
 
   //CRASHA
   //free(&vehicle);
