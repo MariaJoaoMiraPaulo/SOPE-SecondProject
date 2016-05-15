@@ -40,20 +40,20 @@ void* func_vehicle(void* arg){
 
   switch (vehicle.direction){
      case NORTH:
-       fd_write = open("fifoN", O_WRONLY);
+       fd_write = open("fifoN", O_WRONLY | O_NONBLOCK);
        break;
      case SOUTH:
-        fd_write = open("fifoS", O_WRONLY);
+        fd_write = open("fifoS", O_WRONLY | O_NONBLOCK);
          break;
      case EAST:
-        fd_write = open("fifoE", O_WRONLY);
+        fd_write = open("fifoE", O_WRONLY | O_NONBLOCK);
          break;
      case WEST:
-        fd_write = open("fifoW", O_WRONLY);
+        fd_write = open("fifoW", O_WRONLY | O_NONBLOCK);
          break;
    }
 
-  printf("Cheguei à thread!! \n");
+printf("Cheguei à thread!! \n");
  switch (vehicle.direction){
     case NORTH:
         printf("Direction North \n");
@@ -69,11 +69,12 @@ void* func_vehicle(void* arg){
         break;
   }
 
-  printf("ID %d\n",vehicle.id);
+  /*printf("ID %d\n",vehicle.id);
   printf("Parking time %f\n",vehicle.parking_time);
-  printf("Fifo Name %s\n",vehicle.fifo_name);
-
+  printf("Fifo Name %s\n",vehicle.fifo_name);*/
+  printf("Aqui\n");
   write(fd_write, &vehicle, sizeof(Vehicle));
+  printf("Passei o write\n");
 
   //CRASHA
   //free(&vehicle);
