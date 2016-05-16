@@ -23,7 +23,7 @@
 int park_close;
 
 int park_capacity;
-int unavailable_space = 0;
+int unavailable_space;
 
 //Direction enums are the four cardinal points of access to the park
 typedef enum {NORTH, SOUTH, EAST, WEST} Direction;
@@ -45,10 +45,15 @@ void* vehicle_guide(void* arg){
   //verify park state
   sleep(1);
   printf("ID VEICULO:%d\n",vehicle.id);
-  if(unavailable_space<=park_capacity){
+  if(unavailable_space<park_capacity){
     state=VEHICLE_IN;
     printf("Entrei no parque!!!!\n");
+    //unavailable_space++;
+    printf("Capacidade: %d\n", park_capacity);
+    printf("Espaço ocupado: %d\n", unavailable_space);
     unavailable_space++;
+    printf("Espaço ocupado: %d\n", unavailable_space);
+    printf("tempo: %f\n", vehicle.parking_time);
     usleep(vehicle.parking_time);
     unavailable_space--;
   }
@@ -85,7 +90,7 @@ void* func_north(void* arg){
 
   printf("Já abri os fifos\n");
 
-  while(!park_close){
+/*  while(!park_close){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(read_ret > 0){
       printf("PARQUE NORTE ID : %d\n", vehicle.id);
@@ -104,10 +109,18 @@ void* func_north(void* arg){
       printf("PARQUE NORTE ID : %d\n", vehicle.id);
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
       perror("Func_North::Error on creating thread\n");
+    }*/
+
+    while(1){
+      read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
+      if(vehicle.id == -1)
+        break;
+      else  if(read_ret > 0){
+        printf("PARQUE NORTE ID : %d\n", vehicle.id);
+        if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
+        perror("Func_North::Error on creating thread\n");
+      }
     }
-  }
-
-
 
   printf("Norte: vou acabar\n");
 
@@ -137,7 +150,7 @@ void* func_south(void* arg){
 
   printf("Já abri os fifos\n");
 
-  while(!park_close){
+  /*while(!park_close){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(read_ret > 0){
       printf("PARQUE SUL ID : %d\n", vehicle.id);
@@ -156,7 +169,19 @@ void* func_south(void* arg){
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
       perror("Func_South::Error on creating thread\n");
     }
+  }*/
+
+  while(1){
+    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
+    if(vehicle.id == -1)
+      break;
+    else  if(read_ret > 0){
+      printf("PARQUE SUL ID : %d\n", vehicle.id);
+      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
+      perror("Func_South::Error on creating thread\n");
+    }
   }
+
 
   printf("Sul: vou acabar\n");
 
@@ -184,7 +209,7 @@ void* func_east(void* arg){
 
   printf("Já abri os fifos\n");
 
-  while(!park_close){
+/*  while(!park_close){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(read_ret > 0){
       printf("PARQUE ESTE ID : %d\n", vehicle.id);
@@ -199,6 +224,17 @@ void* func_east(void* arg){
   while(read_ret != -1){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(read_ret > 0){
+      printf("PARQUE ESTE ID : %d\n", vehicle.id);
+      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
+      perror("Func_East::Error on creating thread\n");
+    }
+  }*/
+
+  while(1){
+    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
+    if(vehicle.id == -1)
+      break;
+    else  if(read_ret > 0){
       printf("PARQUE ESTE ID : %d\n", vehicle.id);
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
       perror("Func_East::Error on creating thread\n");
@@ -231,7 +267,7 @@ void* func_west(void* arg){
 
   printf("Já abri os fifos\n");
 
-  while(!park_close){
+/*  while(!park_close){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(read_ret > 0){
       printf("PARQUE OESTE ID : %d\n", vehicle.id);
@@ -249,6 +285,17 @@ void* func_west(void* arg){
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
       perror("Func_West::Error on creating thread\n");
     }
+  }*/
+
+  while(1){
+    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
+    if(vehicle.id == -1)
+      break;
+    else  if(read_ret > 0){
+      printf("PARQUE OESTE ID : %d\n", vehicle.id);
+      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
+      perror("Func_West::Error on creating thread\n");
+    }
   }
 
   printf("Oeste: vou acabar\n");
@@ -262,11 +309,17 @@ int main(int argc, char* argv[]){
 
   int number_of_spots=atoi(argv[1]);
   int time_open=atoi(argv[2]);
+  Vehicle last_vehicle;
+
+  last_vehicle.id = -1;
+  last_vehicle.parking_time = 0;
+  strcpy(last_vehicle.fifo_name, "over");
 
   pthread_t tid_n, tid_s, tid_e, tid_w;
 
   //Initializing the park with the number of spots
   park_capacity = number_of_spots;
+  unavailable_space = 0;
 
   //The park is open
   park_close = 0;
@@ -292,6 +345,16 @@ int main(int argc, char* argv[]){
   printf("Vou acabar\n");
 
   park_close = 1;
+
+  int fd_north = open("fifoN", O_WRONLY);
+  int fd_south = open("fifoS", O_WRONLY);
+  int fd_east = open("fifoE", O_WRONLY);
+  int fd_west = open("fifoW", O_WRONLY);
+
+  write(fd_north, &last_vehicle, sizeof(Vehicle));
+  write(fd_south, &last_vehicle, sizeof(Vehicle));
+  write(fd_east, &last_vehicle, sizeof(Vehicle));
+  write(fd_west, &last_vehicle, sizeof(Vehicle));
 
   //pthread_join() function waits for the north thread to terminate
   if(pthread_join(tid_n, NULL) != OK)
