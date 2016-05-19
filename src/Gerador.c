@@ -38,46 +38,50 @@ void* func_vehicle(void* arg){
   mkfifo(vehicle.fifo_name, 0660);
 
   switch (vehicle.direction){
-     case NORTH:
-       fd_write = open("fifoN", O_WRONLY | O_NONBLOCK);
-       break;
-     case SOUTH:
-        fd_write = open("fifoS", O_WRONLY | O_NONBLOCK);
-         break;
-     case EAST:
-        fd_write = open("fifoE", O_WRONLY | O_NONBLOCK);
-         break;
-     case WEST:
-        fd_write = open("fifoW", O_WRONLY | O_NONBLOCK);
-         break;
-   }
-
-printf("Cheguei à thread!! \n");
- switch (vehicle.direction){
     case NORTH:
-        printf("Direction North \n");
-        break;
+    fd_write = open("fifoN", O_WRONLY | O_NONBLOCK);
+    break;
     case SOUTH:
-        printf("Direction South \n");
-        break;
+    fd_write = open("fifoS", O_WRONLY | O_NONBLOCK);
+    break;
     case EAST:
-        printf("Direction East \n");
-        break;
+    fd_write = open("fifoE", O_WRONLY | O_NONBLOCK);
+    break;
     case WEST:
-        printf("Direction West \n");
-        break;
+    fd_write = open("fifoW", O_WRONLY | O_NONBLOCK);
+    break;
+  }
+
+  printf("Cheguei à thread!! \n");
+  switch (vehicle.direction){
+    case NORTH:
+    printf("Direction North \n");
+    break;
+    case SOUTH:
+    printf("Direction South \n");
+    break;
+    case EAST:
+    printf("Direction East \n");
+    break;
+    case WEST:
+    printf("Direction West \n");
+    break;
   }
 
   /*printf("ID %d\n",vehicle.id);
   printf("Parking time %f\n",vehicle.parking_time);
   printf("Fifo Name %s\n",vehicle.fifo_name);*/
   printf("Aqui\n");
-  write(fd_write, &vehicle, sizeof(Vehicle));
+  if(fd_write != -1)
+    write(fd_write, &vehicle, sizeof(Vehicle));
   printf("Passei o write\n");
 
-  fd_read = open(vehicle.fifo_name, O_RDONLY);
-  read(fd_read,&state,sizeof(int));
-  printf("Recebi informação:%d\n",state);
+  fd_read = open(vehicle.fifo_name, O_RDONLY | O_NONBLOCK);
+  if(fd_read != -1){
+    read(fd_read,&state,sizeof(int));
+    printf("Recebi informação: %d, ID : %d\n",state, vehicle.id);
+  }
+  else printf("O parque esta fechado ID %d\n", vehicle.id);
 
   //CRASHA
   //free(&vehicle);
@@ -90,13 +94,13 @@ Direction get_car_direction(){
   int r = rand() % 4;
 
   if(r==0)
-    return NORTH;
+  return NORTH;
   else if(r==1)
-    return SOUTH;
+  return SOUTH;
   else if(r==2)
-    return EAST;
+  return EAST;
   else
-    return WEST;
+  return WEST;
 }
 
 float get_car_parking_time(float u_clock){
@@ -110,10 +114,10 @@ int get_tick_for_next_car(){
   int ticks_for_next_car;
   //50% probability
   if(r<5)
-    ticks_for_next_car=0;
+  ticks_for_next_car=0;
   //30% probability
   else if(r<8)
-    ticks_for_next_car=1;
+  ticks_for_next_car=1;
   //20% probability
   else ticks_for_next_car=2;
 
@@ -122,24 +126,24 @@ int get_tick_for_next_car(){
 
 int generate_car(float u_clock){
 
-   pthread_t tid;
-//no final da funcao gerar a probabilidade
+  pthread_t tid;
+  //no final da funcao gerar a probabilidade
   Vehicle *vehicle = (Vehicle*)malloc(sizeof(Vehicle));
 
   vehicle->direction=get_car_direction();
   switch (vehicle->direction){
     case NORTH:
-        printf("Direction North \n");
-        break;
+    printf("Direction North \n");
+    break;
     case SOUTH:
-        printf("Direction South \n");
-        break;
+    printf("Direction South \n");
+    break;
     case EAST:
-        printf("Direction East \n");
-        break;
+    printf("Direction East \n");
+    break;
     case WEST:
-        printf("Direction West \n");
-        break;
+    printf("Direction West \n");
+    break;
   }
   vehicle->id=id;
   printf("ID %d\n",vehicle->id);
@@ -174,8 +178,8 @@ int main(int argc, char* argv[]){
 
   do{
     if(ticks_for_next_car == 0)
-      //Generate one car
-      ticks_for_next_car=generate_car(u_clock);
+    //Generate one car
+    ticks_for_next_car=generate_car(u_clock);
     else ticks_for_next_car--;
     //suspends execution of the calling thread for (at least) u_clock*10^3 microseconds.
     usleep(u_clock*pow(10,3));
