@@ -25,6 +25,8 @@ int park_close;
 int park_capacity;
 int unavailable_space;
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 //Direction enums are the four cardinal points of access to the park
 typedef enum {NORTH, SOUTH, EAST, WEST} Direction;
 
@@ -45,23 +47,22 @@ void* vehicle_guide(void* arg){
   //verify park state
   sleep(1);
   printf("ID VEICULO:%d\n",vehicle.id);
+  pthread_mutex_lock(&mutex);
   if(unavailable_space<park_capacity){
     state=VEHICLE_IN;
-    printf("Entrei no parque!!!!\n");
-    //unavailable_space++;
-    printf("Capacidade: %d\n", park_capacity);
-    printf("Espaço ocupado: %d\n", unavailable_space);
     unavailable_space++;
-    printf("Espaço ocupado: %d\n", unavailable_space);
-    printf("tempo: %f\n", vehicle.parking_time);
-    usleep(vehicle.parking_time);
+    printf("Entrei no parque!! ID %d capacidade %d, lugares %d\n",vehicle.id, park_capacity, unavailable_space);
+    pthread_mutex_unlock(&mutex);
+    usleep(vehicle.parking_time*pow(10,3));
     unavailable_space--;
   }
   else if(park_close){
+    pthread_mutex_unlock(&mutex);
     printf("Parque Fechado!!!!\n");
     state=PARK_CLOSED;
   }
   else {
+    pthread_mutex_unlock(&mutex);
     state=PARK_FULL;
     printf("Parque Cheio!!!!\n");
   }
