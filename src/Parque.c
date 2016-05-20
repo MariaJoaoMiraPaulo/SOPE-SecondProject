@@ -17,6 +17,7 @@
 #define VEHICLE_IN 0
 #define PARK_FULL 1
 #define PARK_CLOSED 2
+#define LAST_VEHICLE_ID -1
 
 
 //Park_close variable indicates park's state (0 means is open, 1 means is closed)
@@ -114,7 +115,7 @@ void* func_north(void* arg){
 
     while(1){
       read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-      if(vehicle.id == -1)
+      if(vehicle.id == LAST_VEHICLE_ID)
         break;
       else  if(read_ret > 0){
         printf("PARQUE NORTE ID : %d\n", vehicle.id);
@@ -174,7 +175,7 @@ void* func_south(void* arg){
 
   while(1){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(vehicle.id == -1)
+    if(vehicle.id == LAST_VEHICLE_ID)
       break;
     else  if(read_ret > 0){
       printf("PARQUE SUL ID : %d\n", vehicle.id);
@@ -352,9 +353,16 @@ int main(int argc, char* argv[]){
   int fd_east = open("fifoE", O_WRONLY);
   int fd_west = open("fifoW", O_WRONLY);
 
+  //Send to north controller a vehicle that tells the park is closed (last_vehicle has id -1)
   write(fd_north, &last_vehicle, sizeof(Vehicle));
+
+  //Send to south controller a vehicle that tells the park is closed (last_vehicle has id -1)
   write(fd_south, &last_vehicle, sizeof(Vehicle));
+
+  //Send to east controller a vehicle that tells the park is closed (last_vehicle has id -1)
   write(fd_east, &last_vehicle, sizeof(Vehicle));
+
+  //Send to west controller a vehicle that tells the park is closed (last_vehicle has id -1)
   write(fd_west, &last_vehicle, sizeof(Vehicle));
 
   //pthread_join() function waits for the north thread to terminate
@@ -370,6 +378,7 @@ int main(int argc, char* argv[]){
   if(pthread_join(tid_w, NULL) != OK)
   perror("Parque::Error on join thread\n");
 
+  //Wait for all the vehicles till the park is empty, then end the program
   while(unavailable_space!=0){}
 
 
