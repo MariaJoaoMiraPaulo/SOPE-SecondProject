@@ -23,7 +23,10 @@
 //Park_close variable indicates park's state (0 means is open, 1 means is closed)
 int park_close;
 
+//total number of car-parking spaces on park
 int park_capacity;
+
+//number of unavailable car-parking spaces on park
 int unavailable_space;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -48,6 +51,8 @@ void* vehicle_guide(void* arg){
   //verify park state
   sleep(1);
   printf("ID VEICULO:%d\n",vehicle.id);
+
+  //Mutex that controlls the number of available spaces to park a car. The mutex lock all the others threads
   pthread_mutex_lock(&mutex);
   if(unavailable_space<park_capacity){
     state=VEHICLE_IN;
