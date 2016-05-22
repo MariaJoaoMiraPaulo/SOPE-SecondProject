@@ -35,7 +35,7 @@ void* func_vehicle(void* arg){
   void* ret=NULL;
   int fd_read, fd_write;
   int state;
-
+  printf("boas\n");
   char name[]="/sem";
   sem_t *semaphore = sem_open(name, O_CREAT ,0660,1);
 
@@ -73,26 +73,28 @@ void* func_vehicle(void* arg){
     break;
   }
 
-  /*printf("ID %d\n",vehicle.id);
-  printf("Parking time %f\n",vehicle.parking_time);
-  printf("Fifo Name %s\n",vehicle.fifo_name);*/
-  printf("Aqui\n");
+  //To avoid that the thread blocks when park is close
   if(fd_write != -1){
     write(fd_write, &vehicle, sizeof(Vehicle));
     close(fd_write);
-  }
-  printf("Passei o write\n");
-  sem_post(semaphore);
-  sem_close(semaphore);
 
-  fd_read = open(vehicle.fifo_name, O_RDONLY);
-  if(fd_read != -1){
-    printf("Vou ler ID: %d\n", vehicle.id);
-    read(fd_read,&state,sizeof(int));
-    printf("Recebi informação: %d, ID : %d\n",state, vehicle.id);
-  }
-  else printf("O parque esta fechado ID %d\n", vehicle.id);
+    printf("Passei o write\n");
+    sem_post(semaphore);
+    sem_close(semaphore);
 
+    fd_read = open(vehicle.fifo_name, O_RDONLY);
+    if(fd_read != -1){
+      printf("Vou ler ID: %d\n", vehicle.id);
+      read(fd_read,&state,sizeof(int));
+      printf("Recebi informação: %d, ID : %d\n",state, vehicle.id);
+    }
+    else printf("O parque esta fechado ID %d\n", vehicle.id);
+  }
+  else {
+    printf("O parque ainda esta fechado\n");
+    sem_post(semaphore);
+    sem_close(semaphore);
+  }
   //CRASHA
   //free(&vehicle);
 
@@ -120,7 +122,7 @@ float get_car_parking_time(float u_clock){
   float r;
   return r = ((rand() % 10)+1)*u_clock;
 }
-#include <semaphore.h>
+
 int get_tick_for_next_car(){
   int r = rand() % 10;
   int ticks_for_next_car;
