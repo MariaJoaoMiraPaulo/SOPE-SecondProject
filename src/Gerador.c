@@ -85,7 +85,7 @@ void* func_vehicle(void* arg){
   sem_post(semaphore);
   sem_close(semaphore);
 
-  fd_read = open(vehicle.fifo_name, O_RDONLY | O_NONBLOCK);
+  fd_read = open(vehicle.fifo_name, O_RDONLY);
   if(fd_read != -1){
     printf("Vou ler ID: %d\n", vehicle.id);
     read(fd_read,&state,sizeof(int));

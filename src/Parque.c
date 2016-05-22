@@ -298,7 +298,7 @@ int main(int argc, char* argv[]){
 
   //Send to west controller a vehicle that tells the park is closed (last_vehicle has id -1)
   write(fd_west, &last_vehicle, sizeof(Vehicle));
-  
+
   sem_post(semaphore);
   sem_close(semaphore);
 
