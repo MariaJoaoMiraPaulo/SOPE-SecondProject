@@ -18,6 +18,7 @@
 #define VEHICLE_IN 0
 #define PARK_FULL 1
 #define PARK_CLOSED 2
+#define VEHICLE_OUT 3
 #define LAST_VEHICLE_ID -1
 
 
@@ -40,7 +41,9 @@ typedef struct {
   int id;
   float parking_time;
   char fifo_name[FIFO_NAME_LENGTH] ;
-} Vehicle;
+  int initial_ticks;
+
+}Vehicle;
 
 void* vehicle_guide(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
@@ -58,10 +61,12 @@ void* vehicle_guide(void* arg){
   if(unavailable_space<park_capacity && !park_close){
     state=VEHICLE_IN;
     unavailable_space++;
+    write(fd_write,&state,sizeof(int));
     printf("Entrei no parque!! ID %d capacidade %d, lugares %d\n",vehicle.id, park_capacity, unavailable_space);
     pthread_mutex_unlock(&mutex);
     usleep(vehicle.parking_time*pow(10,3));
     unavailable_space--;
+    state=VEHICLE_OUT;
   }
   else if(park_close){
     pthread_mutex_unlock(&mutex);
@@ -322,6 +327,8 @@ int main(int argc, char* argv[]){
 
   //Wait for all the vehicles till the park is empty, then end the program
 //  while(unavailable_space!=0){}
+
+  sem_unlink(name);
 
 
   pthread_exit(NULL);

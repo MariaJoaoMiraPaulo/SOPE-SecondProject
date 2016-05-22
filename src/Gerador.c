@@ -13,10 +13,27 @@
 #include <fcntl.h> // For O_* constants
 #include <semaphore.h>
 
+#define VEHICLE_IN 0
+#define PARK_FULL 1
+#define PARK_CLOSED 2
+#define VEHICLE_OUT 3
 #define FIFO_NAME_LENGTH 10
 #define OK 0
+#define GERADOR_FILE_NAME "gerador.log"
+#define STATUS_MAX_LENGTH 20
+#define DEST_MAX_LENGTH 10
+#define FILE_LINE_MAX_LENGTH 100
+#define BLANK_SPACES 3
+#define TICKS_SPACES 8
+#define ID_SPACES 7
+#define DESTIN_SPACES 6
+#define T_ESTACION_SPACES 10
+#define T_VIDA_SPACES 6
+#define OBSERV_SPACES 6
 
 int id=0;
+int fd_gerador_log;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //Direction enums are the four cardinal points of access to the park
 typedef enum {NORTH, SOUTH, EAST, WEST} Direction;
@@ -26,8 +43,52 @@ typedef struct {
   int id;
   float parking_time;
   char fifo_name[FIFO_NAME_LENGTH] ;
+  int initial_ticks;
 
 }Vehicle;
+
+void write_to_log_file(Vehicle *vehicle, int state){
+  char buffer[FILE_LINE_MAX_LENGTH];
+  char dest[DEST_MAX_LENGTH];
+  char status[STATUS_MAX_LENGTH];
+
+  switch (vehicle->direction){
+    case NORTH:
+    strcpy(dest, "N");
+    break;
+    case SOUTH:
+    strcpy(dest, "S");
+    break;
+    case EAST:
+    strcpy(dest, "E");
+    break;
+    case WEST:
+    strcpy(dest, "O");
+    break;
+  }
+
+  switch(state){
+    case 0:
+    strcpy(status, "entrada");
+    break;
+    case 1:
+    strcpy(status, "cheio");
+    break;
+    case 2:
+    strcpy(status, "fechado");
+    break;
+    case 3:
+    strcpy(status, "saida");
+    break;
+  }
+
+  sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;    1   ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time, status);
+
+  write(fd_gerador_log,buffer,strlen(buffer));
+
+  strcpy(buffer, "");
+
+}
 
 //Function that the thread with tid executes when is created
 void* func_vehicle(void* arg){
@@ -86,7 +147,11 @@ void* func_vehicle(void* arg){
     if(fd_read != -1){
       printf("Vou ler ID: %d\n", vehicle.id);
       read(fd_read,&state,sizeof(int));
+      pthread_mutex_lock(&mutex);
+      write_to_log_file(&vehicle, state);
+      pthread_mutex_unlock(&mutex);
       printf("Recebi informação: %d, ID : %d\n",state, vehicle.id);
+      read(fd_read,&state,sizeof(int));
     }
     else printf("O parque esta fechado ID %d\n", vehicle.id);
   }
@@ -94,11 +159,16 @@ void* func_vehicle(void* arg){
     printf("O parque ainda esta fechado\n");
     sem_post(semaphore);
     sem_close(semaphore);
+    state = 2;
   }
   //CRASHA
   //free(&vehicle);
 
   unlink(vehicle.fifo_name);
+
+  pthread_mutex_lock(&mutex);
+  write_to_log_file(&vehicle, state);
+  pthread_mutex_unlock(&mutex);
 
   return ret;
 }
@@ -138,11 +208,14 @@ int get_tick_for_next_car(){
   return ticks_for_next_car;
 }
 
-int generate_car(float u_clock){
+int generate_car(float u_clock, int ticks){
 
   pthread_t tid;
   //no final da funcao gerar a probabilidade
   Vehicle *vehicle = (Vehicle*)malloc(sizeof(Vehicle));
+
+  vehicle->initial_ticks = ticks;
+  printf("ticks : %d\n", vehicle->initial_ticks);
 
   vehicle->direction=get_car_direction();
   switch (vehicle->direction){
@@ -190,10 +263,16 @@ int main(int argc, char* argv[]){
 
   printf("total_number_ticks%f\n",total_number_ticks );
 
+  fd_gerador_log = open(GERADOR_FILE_NAME, O_WRONLY | O_CREAT  , 0600);
+
+  char buffer[] = "t(ticks) ; id_viat ; destin ; t_estacion ; t_vida ; observ\n";
+
+  write(fd_gerador_log,buffer,strlen(buffer));
+
   do{
     if(ticks_for_next_car == 0)
     //Generate one car
-    ticks_for_next_car=generate_car(u_clock);
+    ticks_for_next_car=generate_car(u_clock, total_number_ticks);
     else ticks_for_next_car--;
     //suspends execution of the calling thread for (at least) u_clock*10^3 microseconds.
     usleep(u_clock*pow(10,3));
