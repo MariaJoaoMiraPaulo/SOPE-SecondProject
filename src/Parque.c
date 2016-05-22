@@ -10,7 +10,8 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <fcntl.h> // For O_* constants
+#include <semaphore.h>
 
 #define FIFO_NAME_LENGTH 10
 #define OK 0
@@ -40,7 +41,7 @@ typedef struct {
 void* vehicle_guide(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
   void* ret=NULL;
-  int state=1;
+  int state;
   int fd_write;
 
   fd_write=open(vehicle.fifo_name,O_WRONLY);
@@ -48,7 +49,7 @@ void* vehicle_guide(void* arg){
   sleep(1);
   printf("ID VEICULO:%d\n",vehicle.id);
   pthread_mutex_lock(&mutex);
-  if(unavailable_space<park_capacity){
+  if(unavailable_space<park_capacity && !park_close){
     state=VEHICLE_IN;
     unavailable_space++;
     printf("Entrei no parque!! ID %d capacidade %d, lugares %d\n",vehicle.id, park_capacity, unavailable_space);
@@ -66,11 +67,12 @@ void* vehicle_guide(void* arg){
     state=PARK_FULL;
     printf("Parque Cheio!!!!\n");
   }
-
+  printf("ID VEICULO:%d  State: %d\n", vehicle.id, state);
   write(fd_write,&state,sizeof(int));
 
+  close(fd_write);
 
-return ret;
+  return ret;
 }
 
 //Function that the thread with tid_n executes when is created
@@ -91,27 +93,6 @@ void* func_north(void* arg){
 
   printf("Já abri os fifos\n");
 
-/*  while(!park_close){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(read_ret > 0){
-      printf("PARQUE NORTE ID : %d\n", vehicle.id);
-      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
-      perror("Func_North::Error on creating thread\n");
-    }
-
-  }
-
-  printf("Norte: vou ler o resto\n");
-
-  while(read_ret != -1){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    printf("Read_ret: %d", read_ret);
-    if(read_ret > 0){
-      printf("PARQUE NORTE ID : %d\n", vehicle.id);
-      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
-      perror("Func_North::Error on creating thread\n");
-    }*/
-
     while(1){
       read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
       if(vehicle.id == -1)
@@ -127,6 +108,7 @@ void* func_north(void* arg){
 
   close(fd_read);
 
+  unlink("fifoN");
 
   return ret;
 
@@ -151,27 +133,6 @@ void* func_south(void* arg){
 
   printf("Já abri os fifos\n");
 
-  /*while(!park_close){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(read_ret > 0){
-      printf("PARQUE SUL ID : %d\n", vehicle.id);
-      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
-      perror("Func_South::Error on creating thread\n");
-    }
-
-  }
-
-  printf("Sul: vou ler o resto\n");
-
-  while(read_ret != -1){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(read_ret > 0){
-      printf("PARQUE SUL ID : %d\n", vehicle.id);
-      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
-      perror("Func_South::Error on creating thread\n");
-    }
-  }*/
-
   while(1){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(vehicle.id == -1)
@@ -183,10 +144,11 @@ void* func_south(void* arg){
     }
   }
 
-
   printf("Sul: vou acabar\n");
 
   close(fd_read);
+
+  unlink("fifoS");
 
   return ret;
 }
@@ -210,27 +172,6 @@ void* func_east(void* arg){
 
   printf("Já abri os fifos\n");
 
-/*  while(!park_close){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(read_ret > 0){
-      printf("PARQUE ESTE ID : %d\n", vehicle.id);
-      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
-      perror("Func_East::Error on creating thread\n");
-    }
-
-  }
-
-  printf("Este: vou ler o resto\n");
-
-  while(read_ret != -1){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(read_ret > 0){
-      printf("PARQUE ESTE ID : %d\n", vehicle.id);
-      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
-      perror("Func_East::Error on creating thread\n");
-    }
-  }*/
-
   while(1){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(vehicle.id == -1)
@@ -246,6 +187,8 @@ void* func_east(void* arg){
 
   close(fd_read);
 
+  unlink("fifoE");
+
   return ret;
 }
 
@@ -257,7 +200,6 @@ void* func_west(void* arg){
   int read_ret;
   pthread_t tid_n;
 
-
   mkfifo("fifoW", 0660);
 
   printf("Vou abrir o fifo\n");
@@ -267,26 +209,6 @@ void* func_west(void* arg){
   open("fifoW", O_WRONLY);
 
   printf("Já abri os fifos\n");
-
-/*  while(!park_close){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(read_ret > 0){
-      printf("PARQUE OESTE ID : %d\n", vehicle.id);
-      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
-      perror("Func_West::Error on creating thread\n");
-    }
-  }
-
-  printf("Oeste: vou ler o resto\n");
-
-  while(read_ret != -1){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(read_ret > 0){
-      printf("PARQUE OESTE ID : %d\n", vehicle.id);
-      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
-      perror("Func_West::Error on creating thread\n");
-    }
-  }*/
 
   while(1){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
@@ -303,6 +225,8 @@ void* func_west(void* arg){
 
   close(fd_read);
 
+  unlink("fifoW");
+
   return ret;
 }
 
@@ -317,6 +241,8 @@ int main(int argc, char* argv[]){
   strcpy(last_vehicle.fifo_name, "over");
 
   pthread_t tid_n, tid_s, tid_e, tid_w;
+  char name[]="/sem";
+  sem_t *semaphore = sem_open(name, O_CREAT ,0660,1);
 
   //Initializing the park with the number of spots
   park_capacity = number_of_spots;
@@ -352,10 +278,18 @@ int main(int argc, char* argv[]){
   int fd_east = open("fifoE", O_WRONLY);
   int fd_west = open("fifoW", O_WRONLY);
 
+  sem_wait(semaphore);
   write(fd_north, &last_vehicle, sizeof(Vehicle));
   write(fd_south, &last_vehicle, sizeof(Vehicle));
   write(fd_east, &last_vehicle, sizeof(Vehicle));
   write(fd_west, &last_vehicle, sizeof(Vehicle));
+  sem_post(semaphore);
+  sem_close(semaphore);
+
+  close(fd_north);
+  close(fd_south);
+  close(fd_east);
+  close(fd_west);
 
   //pthread_join() function waits for the north thread to terminate
   if(pthread_join(tid_n, NULL) != OK)
@@ -370,8 +304,7 @@ int main(int argc, char* argv[]){
   if(pthread_join(tid_w, NULL) != OK)
   perror("Parque::Error on join thread\n");
 
-  while(unavailable_space!=0){}
-
+  //while(unavailable_space!=0){}
 
   pthread_exit(NULL);
 }

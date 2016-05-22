@@ -10,7 +10,8 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <fcntl.h> // For O_* constants
+#include <semaphore.h>
 
 #define FIFO_NAME_LENGTH 10
 #define OK 0
@@ -35,8 +36,12 @@ void* func_vehicle(void* arg){
   int fd_read, fd_write;
   int state;
 
+  char name[]="/sem";
+  sem_t *semaphore = sem_open(name, O_CREAT ,0660,1);
+
   mkfifo(vehicle.fifo_name, 0660);
 
+  sem_wait(semaphore);
   switch (vehicle.direction){
     case NORTH:
     fd_write = open("fifoN", O_WRONLY | O_NONBLOCK);
@@ -72,12 +77,17 @@ void* func_vehicle(void* arg){
   printf("Parking time %f\n",vehicle.parking_time);
   printf("Fifo Name %s\n",vehicle.fifo_name);*/
   printf("Aqui\n");
-  if(fd_write != -1)
+  if(fd_write != -1){
     write(fd_write, &vehicle, sizeof(Vehicle));
+    close(fd_write);
+  }
   printf("Passei o write\n");
+  sem_post(semaphore);
+  sem_close(semaphore);
 
   fd_read = open(vehicle.fifo_name, O_RDONLY | O_NONBLOCK);
   if(fd_read != -1){
+    printf("Vou ler ID: %d\n", vehicle.id);
     read(fd_read,&state,sizeof(int));
     printf("Recebi informação: %d, ID : %d\n",state, vehicle.id);
   }
@@ -85,6 +95,8 @@ void* func_vehicle(void* arg){
 
   //CRASHA
   //free(&vehicle);
+
+  unlink(vehicle.fifo_name);
 
   return ret;
 }
@@ -108,7 +120,7 @@ float get_car_parking_time(float u_clock){
   float r;
   return r = ((rand() % 10)+1)*u_clock;
 }
-
+#include <semaphore.h>
 int get_tick_for_next_car(){
   int r = rand() % 10;
   int ticks_for_next_car;
