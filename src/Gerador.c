@@ -23,13 +23,6 @@
 #define STATUS_MAX_LENGTH 20
 #define DEST_MAX_LENGTH 10
 #define FILE_LINE_MAX_LENGTH 100
-#define BLANK_SPACES 3
-#define TICKS_SPACES 8
-#define ID_SPACES 7
-#define DESTIN_SPACES 6
-#define T_ESTACION_SPACES 10
-#define T_VIDA_SPACES 6
-#define OBSERV_SPACES 6
 
 int id=0;
 int fd_gerador_log;
