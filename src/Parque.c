@@ -12,48 +12,19 @@
 #include <sys/stat.h>
 #include <fcntl.h> // For O_* constants
 #include <semaphore.h>
+#include "Utilities.h"
 
 #define PARQUE_FILE_NAME "parque.log"
-#define FIFO_NAME_LENGTH 10
-#define OK 0
-#define VEHICLE_IN 0
-#define PARK_FULL 1
-#define PARK_CLOSED 2   
-#define VEHICLE_OUT 3
-#define PARKING 4
 #define LAST_VEHICLE_ID -1
-#define STATUS_MAX_LENGTH 20
-#define FILE_LINE_MAX_LENGTH 100
 
-
-
-//Park_close variable indicates park's state (0 means is open, 1 means is closed)
-int park_close;
-
-//total number of car-parking spaces on park
-int park_capacity;
-
-//number of unavailable car-parking spaces on park
-int unavailable_space;
-
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int fd_parque_log;
+int park_close; //Park_close variable indicates park's state (0 means is open, 1 means is closed)
+int park_capacity; //total number of car-parking spaces on park
+int unavailable_space; //number of unavailable car-parking spaces on park
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-//Direction enums are the four cardinal points of access to the park
-typedef enum {NORTH, SOUTH, EAST, WEST} Direction;
-
-typedef struct {
-  Direction direction;
-  int id;
-  float parking_time;
-  float parking_time_tikes;
-  char fifo_name[FIFO_NAME_LENGTH] ;
-  int initial_ticks;
-
-}Vehicle;
 
 void write_to_log_file(Vehicle *vehicle, int state){
   char buffer[FILE_LINE_MAX_LENGTH];
@@ -143,13 +114,13 @@ void* func_north(void* arg){
   int read_ret;
   pthread_t tid_n;
 
-  mkfifo("fifoN", 0660);
+  mkfifo(FIFO_N, PERMISSONS);
 
   printf("Vou abrir o fifo\n");
 
-  fd_read = open("fifoN", O_RDONLY | O_NONBLOCK);
+  fd_read = open(FIFO_N, O_RDONLY | O_NONBLOCK);
   //open on write mode to avoid busy waiting
-  open("fifoN", O_WRONLY);
+  open(FIFO_N, O_WRONLY);
 
   printf("Já abri os fifos\n");
 
@@ -168,7 +139,7 @@ void* func_north(void* arg){
 
   close(fd_read);
 
-  unlink("fifoN");
+  unlink(FIFO_N);
 
   return ret;
 
@@ -183,13 +154,13 @@ void* func_south(void* arg){
   pthread_t tid_n;
 
 
-  mkfifo("fifoS", 0660);
+  mkfifo(FIFO_S, PERMISSONS);
 
   printf("Vou abrir o fifo\n");
 
-  fd_read = open("fifoS", O_RDONLY | O_NONBLOCK);
+  fd_read = open(FIFO_S, O_RDONLY | O_NONBLOCK);
   //open on write mode to avoid busy waiting
-  open("fifoS", O_WRONLY);
+  open(FIFO_S, O_WRONLY);
 
   printf("Já abri os fifos\n");
 
@@ -208,7 +179,7 @@ void* func_south(void* arg){
 
   close(fd_read);
 
-  unlink("fifoS");
+  unlink(FIFO_S);
 
   return ret;
 }
@@ -222,13 +193,13 @@ void* func_east(void* arg){
   pthread_t tid_n;
 
 
-  mkfifo("fifoE", 0660);
+  mkfifo(FIFO_E, PERMISSONS);
 
   printf("Vou abrir o fifo\n");
 
-  fd_read = open("fifoE", O_RDONLY | O_NONBLOCK);
+  fd_read = open(FIFO_E, O_RDONLY | O_NONBLOCK);
   //open on write mode to avoid busy waiting
-  open("fifoE", O_WRONLY);
+  open(FIFO_E, O_WRONLY);
 
   printf("Já abri os fifos\n");
 
@@ -247,7 +218,7 @@ void* func_east(void* arg){
 
   close(fd_read);
 
-  unlink("fifoE");
+  unlink(FIFO_E);
 
   return ret;
 }
@@ -260,13 +231,13 @@ void* func_west(void* arg){
   int read_ret;
   pthread_t tid_n;
 
-  mkfifo("fifoW", 0660);
+  mkfifo(FIFO_W, PERMISSONS);
 
   printf("Vou abrir o fifo\n");
 
-  fd_read = open("fifoW", O_RDONLY | O_NONBLOCK);
+  fd_read = open(FIFO_W, O_RDONLY | O_NONBLOCK);
   //open on write mode to avoid busy waiting
-  open("fifoW", O_WRONLY);
+  open(FIFO_W, O_WRONLY);
 
   printf("Já abri os fifos\n");
 
@@ -285,7 +256,7 @@ void* func_west(void* arg){
 
   close(fd_read);
 
-  unlink("fifoW");
+  unlink(FIFO_W);
 
   return ret;
 }
@@ -312,9 +283,7 @@ int main(int argc, char* argv[]){
   FILE *fp=fopen(PARQUE_FILE_NAME,"w");
   fclose(fp);
 
-
-  char name[]="/sem";
-  sem_t *semaphore = sem_open(name, O_CREAT ,0660,1);
+  sem_t *semaphore = sem_open(CONST_CHAR_NAME_SEMAPHORE, O_CREAT ,PERMISSONS,1);
 
   //name of program, park's number of spots and park's time open
   if(argc != 3){
@@ -325,7 +294,7 @@ int main(int argc, char* argv[]){
   park_close = 0;
 
   //opening the file "parque.log" to write vehicles information
-  fd_parque_log = open(PARQUE_FILE_NAME, O_WRONLY | O_CREAT  , 0600);
+  fd_parque_log = open(PARQUE_FILE_NAME, O_WRONLY | O_CREAT  , PERMISSONS);
 
   char buffer[] = "t(ticks) ; nlug ; id_viat ; observ\n";
 
@@ -351,10 +320,10 @@ int main(int argc, char* argv[]){
   //The park is closed
   park_close = 1;
 
-  int fd_north = open("fifoN", O_WRONLY);
-  int fd_south = open("fifoS", O_WRONLY);
-  int fd_east = open("fifoE", O_WRONLY);
-  int fd_west = open("fifoW", O_WRONLY);
+  int fd_north = open(FIFO_N, O_WRONLY);
+  int fd_south = open(FIFO_S, O_WRONLY);
+  int fd_east = open(FIFO_E, O_WRONLY);
+  int fd_west = open(FIFO_W, O_WRONLY);
 
 
   sem_wait(semaphore);
@@ -396,7 +365,7 @@ int main(int argc, char* argv[]){
 
   //  while(unavailable_space!=0){}
 
-  sem_unlink(name);
+  sem_unlink(CONST_CHAR_NAME_SEMAPHORE);
 
   pthread_exit(NULL);
 }

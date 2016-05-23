@@ -13,34 +13,16 @@
 #include <fcntl.h> // For O_* constants
 #include <semaphore.h>
 
-#define VEHICLE_IN 0
-#define PARK_FULL 1
-#define PARK_CLOSED 2
-#define VEHICLE_OUT 3
-#define FIFO_NAME_LENGTH 10
-#define OK 0
+#include "Utilities.h"
+
 #define GERADOR_FILE_NAME "gerador.log"
-#define STATUS_MAX_LENGTH 20
 #define DEST_MAX_LENGTH 10
-#define FILE_LINE_MAX_LENGTH 100
+
 
 int id=0;
 int fd_gerador_log;
 float number_ticks=0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-//Direction enums are the four cardinal points of access to the park
-typedef enum {NORTH, SOUTH, EAST, WEST} Direction;
-
-typedef struct {
-  Direction direction;
-  int id;
-  float parking_time;
-  float parking_time_tikes;
-  char fifo_name[FIFO_NAME_LENGTH] ;
-  int initial_ticks;
-
-}Vehicle;
 
 void write_to_log_file(Vehicle *vehicle, int state){
   char buffer[FILE_LINE_MAX_LENGTH];
@@ -93,25 +75,25 @@ void* func_vehicle(void* arg){
   void* ret=NULL;
   int fd_read, fd_write;
   int state=0;
-  printf("boas\n");
-  char name[]="/sem";
-  sem_t *semaphore = sem_open(name, O_CREAT ,0660,1);
 
-  mkfifo(vehicle.fifo_name, 0660);
+
+  sem_t *semaphore = sem_open(CONST_CHAR_NAME_SEMAPHORE, O_CREAT ,PERMISSONS,1);
+
+  mkfifo(vehicle.fifo_name, PERMISSONS);
 
   sem_wait(semaphore);
   switch (vehicle.direction){
     case NORTH:
-    fd_write = open("fifoN", O_WRONLY | O_NONBLOCK);
+    fd_write = open(FIFO_N, O_WRONLY | O_NONBLOCK);
     break;
     case SOUTH:
-    fd_write = open("fifoS", O_WRONLY | O_NONBLOCK);
+    fd_write = open(FIFO_S, O_WRONLY | O_NONBLOCK);
     break;
     case EAST:
-    fd_write = open("fifoE", O_WRONLY | O_NONBLOCK);
+    fd_write = open(FIFO_E, O_WRONLY | O_NONBLOCK);
     break;
     case WEST:
-    fd_write = open("fifoW", O_WRONLY | O_NONBLOCK);
+    fd_write = open(FIFO_W, O_WRONLY | O_NONBLOCK);
     break;
   }
 
@@ -267,13 +249,13 @@ int main(int argc, char* argv[]){
 
   printf("total_number_ticks%f\n",total_number_ticks );
 
-  fd_gerador_log = open(GERADOR_FILE_NAME, O_WRONLY | O_CREAT  , 0600);
+  fd_gerador_log = open(GERADOR_FILE_NAME, O_WRONLY | O_CREAT  , PERMISSONS);
 
   char buffer[] = "t(ticks) ; id_viat ; destin ; t_estacion ; t_vida ; observ\n";
 
   write(fd_gerador_log,buffer,strlen(buffer));
 
-  do{  
+  do{
     if(ticks_for_next_car == 0)
     //Generate one car
     ticks_for_next_car=generate_car(u_clock, number_ticks);
