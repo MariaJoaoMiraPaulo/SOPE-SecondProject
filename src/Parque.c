@@ -49,6 +49,7 @@ typedef struct {
   Direction direction;
   int id;
   float parking_time;
+  float parking_time_tikes;
   char fifo_name[FIFO_NAME_LENGTH] ;
   int initial_ticks;
 
@@ -59,26 +60,27 @@ void write_to_log_file(Vehicle *vehicle, int state){
   char status[STATUS_MAX_LENGTH];
 
   switch(state){
-    case 0:
+    case VEHICLE_IN:
     strcpy(status, "entrada");
     break;
-    case 1:
+    case PARK_FULL:
     strcpy(status, "cheio");
     break;
-    case 2:
+    case PARK_CLOSED:
     strcpy(status, "fechado");
     break;
-    case 3:
+    case VEHICLE_OUT:
     strcpy(status, "saida");
     break;
-    case 4:
+    case PARKING:
     strcpy(status, "estacionamento");
     break;
 
   }
-
-  sprintf(buffer, "%-8d ; %4d ; %7d ; %s\n",vehicle->initial_ticks, (park_capacity - unavailable_space),vehicle->id, status);
-
+  if(state==VEHICLE_OUT)
+    sprintf(buffer, "%-8d ; %4d ; %7d ; %s\n",(int)(vehicle->initial_ticks+vehicle->parking_time_tikes), (park_capacity - unavailable_space),vehicle->id, status);
+  else
+    sprintf(buffer, "%-8d ; %4d ; %7d ; %s\n",vehicle->initial_ticks, (park_capacity - unavailable_space),vehicle->id, status);
   write(fd_parque_log,buffer,strlen(buffer));
 
   strcpy(buffer, "");
@@ -151,16 +153,16 @@ void* func_north(void* arg){
 
   printf("Já abri os fifos\n");
 
-    while(1){
-      read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-      if(vehicle.id == LAST_VEHICLE_ID)
-        break;
-      else  if(read_ret > 0){
-        printf("PARQUE NORTE ID : %d\n", vehicle.id);
-        if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
-        perror("Func_North::Error on creating thread\n");
-      }
+  while(1){
+    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
+    if(vehicle.id == LAST_VEHICLE_ID)
+    break;
+    else  if(read_ret > 0){
+      printf("PARQUE NORTE ID : %d\n", vehicle.id);
+      if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
+      perror("Func_North::Error on creating thread\n");
     }
+  }
 
   printf("Norte: vou acabar\n");
 
@@ -194,7 +196,7 @@ void* func_south(void* arg){
   while(1){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(vehicle.id == LAST_VEHICLE_ID)
-      break;
+    break;
     else  if(read_ret > 0){
       printf("PARQUE SUL ID : %d\n", vehicle.id);
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
@@ -233,7 +235,7 @@ void* func_east(void* arg){
   while(1){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(vehicle.id == -1)
-      break;
+    break;
     else  if(read_ret > 0){
       printf("PARQUE ESTE ID : %d\n", vehicle.id);
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
@@ -271,7 +273,7 @@ void* func_west(void* arg){
   while(1){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
     if(vehicle.id == -1)
-      break;
+    break;
     else  if(read_ret > 0){
       printf("PARQUE OESTE ID : %d\n", vehicle.id);
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
@@ -288,23 +290,6 @@ void* func_west(void* arg){
   return ret;
 }
 
-void opening_park(){
-
-  pthread_t tid_n, tid_s, tid_e, tid_w;
-
-  //Creating the thread controller on the north pole of the park
-  if(pthread_create(&tid_n,NULL,func_north,NULL) != OK)
-  perror("Parque::Error on creating thread\n");
-  //Creating the thread controller on the south pole of the park
-  if(pthread_create(&tid_s,NULL,func_south,NULL) != OK)
-  perror("Parque::Error on creating thread\n");
-  //Creating the thread controller on the east pole of the park
-  if(pthread_create(&tid_e,NULL,func_east,NULL) != OK)
-  perror("Parque::Error on creating thread\n");
-  //Creating the thread controller on the west pole of the park
-  if(pthread_create(&tid_w,NULL,func_west,NULL) != OK)
-  perror("Parque::Error on creating thread\n");
-}
 
 int main(int argc, char* argv[]){
 
@@ -320,6 +305,12 @@ int main(int argc, char* argv[]){
   last_vehicle.id = -1;
   last_vehicle.parking_time = 0;
   strcpy(last_vehicle.fifo_name, "over");
+
+  //Reseting File Parque.log
+  //fopen creates an empty file for writing.
+  //If a file with the same name already exists, its content is erased and the file is considered as a new empty file.
+  FILE *fp=fopen(PARQUE_FILE_NAME,"w");
+  fclose(fp);
 
 
   char name[]="/sem";
@@ -340,7 +331,20 @@ int main(int argc, char* argv[]){
 
   write(fd_parque_log,buffer,strlen(buffer));
 
-  opening_park();
+
+  //Creating the thread controller on the north pole of the park
+  if(pthread_create(&tid_n,NULL,func_north,NULL) != OK)
+  perror("Parque::Error on creating thread\n");
+  //Creating the thread controller on the south pole of the park
+  if(pthread_create(&tid_s,NULL,func_south,NULL) != OK)
+  perror("Parque::Error on creating thread\n");
+  //Creating the thread controller on the east pole of the park
+  if(pthread_create(&tid_e,NULL,func_east,NULL) != OK)
+  perror("Parque::Error on creating thread\n");
+  //Creating the thread controller on the west pole of the park
+  if(pthread_create(&tid_w,NULL,func_west,NULL) != OK)
+  perror("Parque::Error on creating thread\n");
+
   sleep(time_open);
   printf("Vou acabar\n");
 
@@ -390,7 +394,7 @@ int main(int argc, char* argv[]){
 
   //Wait for all the vehicles till the park is empty, then end the program
 
-//  while(unavailable_space!=0){}
+  //  while(unavailable_space!=0){}
 
   sem_unlink(name);
 

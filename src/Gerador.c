@@ -26,6 +26,7 @@
 
 int id=0;
 int fd_gerador_log;
+float number_ticks=0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //Direction enums are the four cardinal points of access to the park
@@ -35,6 +36,7 @@ typedef struct {
   Direction direction;
   int id;
   float parking_time;
+  float parking_time_tikes;
   char fifo_name[FIFO_NAME_LENGTH] ;
   int initial_ticks;
 
@@ -61,21 +63,23 @@ void write_to_log_file(Vehicle *vehicle, int state){
   }
 
   switch(state){
-    case 0:
+    case VEHICLE_IN:
     strcpy(status, "entrada");
     break;
-    case 1:
+    case PARK_FULL:
     strcpy(status, "cheio");
     break;
-    case 2:
+    case PARK_CLOSED:
     strcpy(status, "fechado");
     break;
-    case 3:
+    case VEHICLE_OUT:
     strcpy(status, "saida");
     break;
   }
-
-  sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;    1   ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time, status);
+  if (state==VEHICLE_OUT)
+    sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ; %6d ; %s\n",(int)(vehicle->initial_ticks+vehicle->parking_time_tikes), vehicle->id, dest, (int)vehicle->parking_time,(int)(number_ticks-vehicle->initial_ticks),status);
+  else
+    sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;      ? ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time, status);
 
   write(fd_gerador_log,buffer,strlen(buffer));
 
@@ -88,7 +92,7 @@ void* func_vehicle(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
   void* ret=NULL;
   int fd_read, fd_write;
-  int state;
+  int state=0;
   printf("boas\n");
   char name[]="/sem";
   sem_t *semaphore = sem_open(name, O_CREAT ,0660,1);
@@ -228,6 +232,7 @@ int generate_car(float u_clock, int ticks){
   vehicle->id=id;
   printf("ID %d\n",vehicle->id);
   vehicle->parking_time=get_car_parking_time(u_clock);
+  vehicle->parking_time_tikes=vehicle->parking_time/u_clock;
   printf("Parking time %f\n",vehicle->parking_time);
   id++;
   sprintf(vehicle->fifo_name,"%s%d","fifo",id);
@@ -250,6 +255,12 @@ int main(int argc, char* argv[]){
   float total_number_ticks=(time_generation*pow(10,3))/u_clock;
   int ticks_for_next_car=0;
 
+  //Reseting File Gerador.log
+  //fopen creates an empty file for writing.
+  //If a file with the same name already exists, its content is erased and the file is considered as a new empty file.
+  FILE* file1 = fopen(GERADOR_FILE_NAME,"w");
+  fclose(file1);
+
   if(argc != 3){
     perror("Invalid number of arguments.\n\n");
   }
@@ -265,12 +276,12 @@ int main(int argc, char* argv[]){
   do{
     if(ticks_for_next_car == 0)
     //Generate one car
-    ticks_for_next_car=generate_car(u_clock, total_number_ticks);
+    ticks_for_next_car=generate_car(u_clock, number_ticks);
     else ticks_for_next_car--;
     //suspends execution of the calling thread for (at least) u_clock*10^3 microseconds.
     usleep(u_clock*pow(10,3));
-    total_number_ticks--;
-  }while(total_number_ticks>0);
+    number_ticks++;
+  }while(total_number_ticks!=number_ticks);
 
   pthread_exit(NULL);
   //return 0;
