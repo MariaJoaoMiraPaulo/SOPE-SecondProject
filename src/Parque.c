@@ -108,7 +108,6 @@ void* vehicle_guide(void* arg){
 
 //Function that the thread with tid_n executes when is created
 void* func_north(void* arg){
-  void* ret = NULL;
   int fd_read;
   Vehicle vehicle;
   int read_ret;
@@ -141,13 +140,11 @@ void* func_north(void* arg){
 
   unlink(FIFO_N);
 
-  return ret;
-
+  pthread_exit(0);
 }
 
 //Function that the thread with tid_s executes when is created
 void* func_south(void* arg){
-  void* ret = NULL;
   int fd_read;
   Vehicle vehicle;
   int read_ret;
@@ -181,12 +178,11 @@ void* func_south(void* arg){
 
   unlink(FIFO_S);
 
-  return ret;
+  pthread_exit(0);
 }
 
 //Function that the thread with tid_e executes when is created
 void* func_east(void* arg){
-  void* ret = NULL;
   int fd_read;
   Vehicle vehicle;
   int read_ret;
@@ -220,12 +216,11 @@ void* func_east(void* arg){
 
   unlink(FIFO_E);
 
-  return ret;
+  pthread_exit(0);
 }
 
 //Function that the thread with tid_w executes when is created
 void* func_west(void* arg){
-  void* ret = NULL;
   int fd_read;
   Vehicle vehicle;
   int read_ret;
@@ -258,7 +253,7 @@ void* func_west(void* arg){
 
   unlink(FIFO_W);
 
-  return ret;
+  pthread_exit(0);
 }
 
 

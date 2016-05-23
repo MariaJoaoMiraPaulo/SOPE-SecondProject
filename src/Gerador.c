@@ -72,7 +72,6 @@ void write_to_log_file(Vehicle *vehicle, int state){
 //Function that the thread with tid executes when is created
 void* func_vehicle(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
-  void* ret=NULL;
   int fd_read, fd_write;
   int state=0;
 
@@ -149,7 +148,7 @@ void* func_vehicle(void* arg){
   write_to_log_file(&vehicle, state);
   pthread_mutex_unlock(&mutex);
 
-  return ret;
+pthread_exit(0);
 }
 
 Direction get_car_direction(){
