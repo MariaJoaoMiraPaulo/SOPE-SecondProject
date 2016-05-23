@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -D_REENTRANT -lpthread -lrt -Wall
+CFLAGS = -D_REENTRANT -lpthread -Wall
 
 all: Parque Gerador
 
