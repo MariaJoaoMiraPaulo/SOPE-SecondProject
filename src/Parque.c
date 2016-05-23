@@ -26,6 +26,7 @@
 #define FILE_LINE_MAX_LENGTH 100
 
 
+
 //Park_close variable indicates park's state (0 means is open, 1 means is closed)
 int park_close;
 
@@ -95,7 +96,7 @@ void* vehicle_guide(void* arg){
   sleep(1);
   printf("ID VEICULO:%d\n",vehicle.id);
 
-  //Mutex that controlls the number of available spaces to park a car. The mutex lock all the others threads
+  //Mutex that controlls the number of available spaces to park a car. The mutex lock all the others threads when acess to varibles unavailable_space and park_capacity
   pthread_mutex_lock(&mutex);
   if(unavailable_space<park_capacity && !park_close){
     state=VEHICLE_IN;
@@ -287,36 +288,9 @@ void* func_west(void* arg){
   return ret;
 }
 
-int main(int argc, char* argv[]){
-
-  int number_of_spots=atoi(argv[1]);
-  int time_open=atoi(argv[2]);
-  Vehicle last_vehicle;
-
-  last_vehicle.id = -1;
-  last_vehicle.parking_time = 0;
-  strcpy(last_vehicle.fifo_name, "over");
+void opening_park(){
 
   pthread_t tid_n, tid_s, tid_e, tid_w;
-  char name[]="/sem";
-  sem_t *semaphore = sem_open(name, O_CREAT ,0660,1);
-
-  //Initializing the park with the number of spots
-  park_capacity = number_of_spots;
-  unavailable_space = 0;
-
-  //The park is open
-  park_close = 0;
-
-  fd_parque_log = open(PARQUE_FILE_NAME, O_WRONLY | O_CREAT  , 0600);
-
-  char buffer[] = "t(ticks) ; nlug ; id_viat ; observ\n";
-
-  write(fd_parque_log,buffer,strlen(buffer));
-
-  if(argc != 3){
-    perror("Invalid number of arguments.\n\n");
-  }
 
   //Creating the thread controller on the north pole of the park
   if(pthread_create(&tid_n,NULL,func_north,NULL) != OK)
@@ -330,10 +304,47 @@ int main(int argc, char* argv[]){
   //Creating the thread controller on the west pole of the park
   if(pthread_create(&tid_w,NULL,func_west,NULL) != OK)
   perror("Parque::Error on creating thread\n");
+}
 
+int main(int argc, char* argv[]){
+
+  int number_of_spots=atoi(argv[1]);
+  int time_open=atoi(argv[2]);
+  //Initializing the park with the number of spots
+  park_capacity = number_of_spots;
+  unavailable_space = 0;
+  pthread_t tid_n, tid_s, tid_e, tid_w;
+
+  //Initialize the last vehicle to inform the park is closed. last_vehicle id is equal to -1
+  Vehicle last_vehicle;
+  last_vehicle.id = -1;
+  last_vehicle.parking_time = 0;
+  strcpy(last_vehicle.fifo_name, "over");
+
+
+  char name[]="/sem";
+  sem_t *semaphore = sem_open(name, O_CREAT ,0660,1);
+
+  //name of program, park's number of spots and park's time open
+  if(argc != 3){
+    perror("Invalid number of arguments.\n\n");
+  }
+
+  //The park is open
+  park_close = 0;
+
+  //opening the file "parque.log" to write vehicles information
+  fd_parque_log = open(PARQUE_FILE_NAME, O_WRONLY | O_CREAT  , 0600);
+
+  char buffer[] = "t(ticks) ; nlug ; id_viat ; observ\n";
+
+  write(fd_parque_log,buffer,strlen(buffer));
+
+  opening_park();
   sleep(time_open);
   printf("Vou acabar\n");
 
+  //The park is closed
   park_close = 1;
 
   int fd_north = open("fifoN", O_WRONLY);
@@ -378,10 +389,10 @@ int main(int argc, char* argv[]){
   perror("Parque::Error on join thread\n");
 
   //Wait for all the vehicles till the park is empty, then end the program
+
 //  while(unavailable_space!=0){}
 
   sem_unlink(name);
-
 
   pthread_exit(NULL);
 }
