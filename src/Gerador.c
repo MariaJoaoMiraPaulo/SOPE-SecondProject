@@ -273,7 +273,7 @@ int main(int argc, char* argv[]){
 
   write(fd_gerador_log,buffer,strlen(buffer));
 
-  do{
+  do{  
     if(ticks_for_next_car == 0)
     //Generate one car
     ticks_for_next_car=generate_car(u_clock, number_ticks);

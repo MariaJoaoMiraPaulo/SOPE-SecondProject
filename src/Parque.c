@@ -18,7 +18,7 @@
 #define OK 0
 #define VEHICLE_IN 0
 #define PARK_FULL 1
-#define PARK_CLOSED 2
+#define PARK_CLOSED 2   
 #define VEHICLE_OUT 3
 #define PARKING 4
 #define LAST_VEHICLE_ID -1
