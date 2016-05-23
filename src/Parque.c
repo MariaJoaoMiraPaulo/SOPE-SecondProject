@@ -13,13 +13,17 @@
 #include <fcntl.h> // For O_* constants
 #include <semaphore.h>
 
+#define PARQUE_FILE_NAME "parque.log"
 #define FIFO_NAME_LENGTH 10
 #define OK 0
 #define VEHICLE_IN 0
 #define PARK_FULL 1
 #define PARK_CLOSED 2
 #define VEHICLE_OUT 3
+#define PARKING 4
 #define LAST_VEHICLE_ID -1
+#define STATUS_MAX_LENGTH 20
+#define FILE_LINE_MAX_LENGTH 100
 
 
 //Park_close variable indicates park's state (0 means is open, 1 means is closed)
@@ -33,6 +37,10 @@ int unavailable_space;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+int fd_parque_log;
+
 //Direction enums are the four cardinal points of access to the park
 typedef enum {NORTH, SOUTH, EAST, WEST} Direction;
 
@@ -44,6 +52,37 @@ typedef struct {
   int initial_ticks;
 
 }Vehicle;
+
+void write_to_log_file(Vehicle *vehicle, int state){
+  char buffer[FILE_LINE_MAX_LENGTH];
+  char status[STATUS_MAX_LENGTH];
+
+  switch(state){
+    case 0:
+    strcpy(status, "entrada");
+    break;
+    case 1:
+    strcpy(status, "cheio");
+    break;
+    case 2:
+    strcpy(status, "fechado");
+    break;
+    case 3:
+    strcpy(status, "saida");
+    break;
+    case 4:
+    strcpy(status, "estacionamento");
+    break;
+
+  }
+
+  sprintf(buffer, "%-8d ; %4d ; %7d ; %s\n",vehicle->initial_ticks, (park_capacity - unavailable_space),vehicle->id, status);
+
+  write(fd_parque_log,buffer,strlen(buffer));
+
+  strcpy(buffer, "");
+
+}
 
 void* vehicle_guide(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
@@ -62,6 +101,9 @@ void* vehicle_guide(void* arg){
     state=VEHICLE_IN;
     unavailable_space++;
     write(fd_write,&state,sizeof(int));
+    pthread_mutex_lock(&file_mutex);
+    write_to_log_file(&vehicle, PARKING);
+    pthread_mutex_unlock(&file_mutex);
     printf("Entrei no parque!! ID %d capacidade %d, lugares %d\n",vehicle.id, park_capacity, unavailable_space);
     pthread_mutex_unlock(&mutex);
     usleep(vehicle.parking_time*pow(10,3));
@@ -80,6 +122,10 @@ void* vehicle_guide(void* arg){
   }
   printf("ID VEICULO:%d  State: %d\n", vehicle.id, state);
   write(fd_write,&state,sizeof(int));
+
+  pthread_mutex_lock(&file_mutex);
+  write_to_log_file(&vehicle, state);
+  pthread_mutex_unlock(&file_mutex);
 
   close(fd_write);
 
@@ -261,6 +307,12 @@ int main(int argc, char* argv[]){
 
   //The park is open
   park_close = 0;
+
+  fd_parque_log = open(PARQUE_FILE_NAME, O_WRONLY | O_CREAT  , 0600);
+
+  char buffer[] = "t(ticks) ; nlug ; id_viat ; observ\n";
+
+  write(fd_parque_log,buffer,strlen(buffer));
 
   if(argc != 3){
     perror("Invalid number of arguments.\n\n");
