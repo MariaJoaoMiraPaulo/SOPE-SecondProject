@@ -27,5 +27,4 @@ typedef struct {
   float parking_time_tikes;
   char fifo_name[FIFO_NAME_LENGTH] ;
   int initial_ticks;
-
 }Vehicle;

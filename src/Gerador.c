@@ -21,9 +21,10 @@
 
 int id=0;
 int fd_gerador_log;
-float number_ticks=0;
+float number_ticks=0; //Atual number of ticks of the program
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+//Write to the file named "gerador.log" all the vehicles' information
 void write_to_log_file(Vehicle *vehicle, int state){
   char buffer[FILE_LINE_MAX_LENGTH];
   char dest[DEST_MAX_LENGTH];
@@ -58,18 +59,21 @@ void write_to_log_file(Vehicle *vehicle, int state){
     strcpy(status, "saida");
     break;
   }
+  //If the Vehicle could enter the park and now is going out, then it is necessary to print information like t_vida
   if (state==VEHICLE_OUT)
     sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ; %6d ; %s\n",(int)(vehicle->initial_ticks+vehicle->parking_time_tikes), vehicle->id, dest, (int)vehicle->parking_time,(int)(number_ticks-vehicle->initial_ticks),status);
-  else
+  else //If the vehicle's state is VEHICLE_IN/PARK_FULL/PARK_CLOSED that means the vehicle doesn't have t_vida.
     sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;      ? ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time, status);
 
+  //Writes the string Buffer to gerador.log with filedes "fd_gerador_log"
   write(fd_gerador_log,buffer,strlen(buffer));
 
   strcpy(buffer, "");
 
 }
 
-//Function that the thread with tid executes when is created
+//Function that the thread with pthread_t tid executes when is created
+//Receives one vehicle
 void* func_vehicle(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
   int fd_read, fd_write;
@@ -78,50 +82,35 @@ void* func_vehicle(void* arg){
 
   sem_t *semaphore = sem_open(CONST_CHAR_NAME_SEMAPHORE, O_CREAT ,PERMISSONS,1);
 
+  //Creates her own Fifo
   mkfifo(vehicle.fifo_name, PERMISSONS);
 
   sem_wait(semaphore);
-  switch (vehicle.direction){
+  switch (vehicle.direction){  //Opens the respective controller (depending to the direction loaded on the struct vehicle) to send the vehicle information to Park
     case NORTH:
-    fd_write = open(FIFO_N, O_WRONLY | O_NONBLOCK);
+    fd_write = open(FIFO_N, O_WRONLY | O_NONBLOCK); //if some process opened the FIFO for reading, returns the FIFO's descriptor if not, returns -1 (Error and FIFO could not be opened), which means the park is still closed
     break;
     case SOUTH:
-    fd_write = open(FIFO_S, O_WRONLY | O_NONBLOCK);
+    fd_write = open(FIFO_S, O_WRONLY | O_NONBLOCK); //if some process opened the FIFO for reading, returns the FIFO's descriptor if not, returns -1 (Error and FIFO could not be opened), which means the park is still closed
     break;
     case EAST:
-    fd_write = open(FIFO_E, O_WRONLY | O_NONBLOCK);
+    fd_write = open(FIFO_E, O_WRONLY | O_NONBLOCK); //if some process opened the FIFO for reading, returns the FIFO's descriptor if not, returns -1 (Error and FIFO could not be opened), which means the park is still closed
     break;
     case WEST:
-    fd_write = open(FIFO_W, O_WRONLY | O_NONBLOCK);
+    fd_write = open(FIFO_W, O_WRONLY | O_NONBLOCK); //if some process opened the FIFO for reading, returns the FIFO's descriptor if not, returns -1 (Error and FIFO could not be opened), which means the park is still closed
     break;
   }
 
-  printf("Cheguei à thread!! \n");
-  switch (vehicle.direction){
-    case NORTH:
-    printf("Direction North \n");
-    break;
-    case SOUTH:
-    printf("Direction South \n");
-    break;
-    case EAST:
-    printf("Direction East \n");
-    break;
-    case WEST:
-    printf("Direction West \n");
-    break;
-  }
 
-  //To avoid that the thread blocks when park is close
+  //Verify the value of fd_write, to avoid the blocking when Park is still closed
   if(fd_write != -1){
-    write(fd_write, &vehicle, sizeof(Vehicle));
+    write(fd_write, &vehicle, sizeof(Vehicle)); //send Vehicle to Park's controller
     close(fd_write);
 
-    printf("Passei o write\n");
     sem_post(semaphore);
     sem_close(semaphore);
 
-    fd_read = open(vehicle.fifo_name, O_RDONLY);
+    fd_read = open(vehicle.fifo_name, O_RDONLY); //Blocks until some other process opens the same FIFO for writing
     if(fd_read != -1){
       printf("Vou ler ID: %d\n", vehicle.id);
       read(fd_read,&state,sizeof(int));
@@ -133,14 +122,12 @@ void* func_vehicle(void* arg){
     }
     else printf("O parque esta fechado ID %d\n", vehicle.id);
   }
-  else {
+  else {//The Park is still closed!! Can't receive vehicles
     printf("O parque ainda esta fechado\n");
     sem_post(semaphore);
     sem_close(semaphore);
     state = 2;
   }
-  //CRASHA
-  //free(&vehicle);
 
   unlink(vehicle.fifo_name);
 
@@ -148,7 +135,7 @@ void* func_vehicle(void* arg){
   write_to_log_file(&vehicle, state);
   pthread_mutex_unlock(&mutex);
 
-pthread_exit(0);
+  pthread_exit(0);
 }
 
 Direction get_car_direction(){
