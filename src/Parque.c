@@ -49,7 +49,7 @@ void write_to_log_file(Vehicle *vehicle, int state){
 
   }
   if(state==VEHICLE_OUT)
-    sprintf(buffer, "%-8d ; %4d ; %7d ; %s\n",(int)(vehicle->initial_ticks+vehicle->parking_time_tikes), (park_capacity - unavailable_space),vehicle->id, status);
+    sprintf(buffer, "%-8d ; %4d ; %7d ; %s\n",(int)(vehicle->initial_ticks+vehicle->parking_time_ticks), (park_capacity - unavailable_space),vehicle->id, status);
   else
     sprintf(buffer, "%-8d ; %4d ; %7d ; %s\n",vehicle->initial_ticks, (park_capacity - unavailable_space),vehicle->id, status);
   write(fd_parque_log,buffer,strlen(buffer));

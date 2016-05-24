@@ -15,6 +15,7 @@
 #define FIFO_S "fifoS"
 #define FIFO_E "fifoE"
 #define FIFO_W "fifoW"
+#define VEHICLE_FIFO_NAME "fifo"
 #define PERMISSONS 0660
 
 //Direction enums are the four cardinal points of access to the park
@@ -24,7 +25,7 @@ typedef struct {
   Direction direction;
   int id;
   float parking_time;
-  float parking_time_tikes;
+  float parking_time_ticks;
   char fifo_name[FIFO_NAME_LENGTH] ;
   int initial_ticks;
 }Vehicle;

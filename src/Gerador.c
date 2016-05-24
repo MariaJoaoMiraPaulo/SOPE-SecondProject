@@ -61,9 +61,9 @@ void write_to_log_file(Vehicle *vehicle, int state){
   }
   //If the Vehicle could enter the park and now is going out, then it is necessary to print information like t_vida
   if (state==VEHICLE_OUT)
-    sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ; %6d ; %s\n",(int)(vehicle->initial_ticks+vehicle->parking_time_tikes), vehicle->id, dest, (int)vehicle->parking_time,(int)(number_ticks-vehicle->initial_ticks),status);
+  sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ; %6d ; %s\n",(int)(vehicle->initial_ticks+vehicle->parking_time_ticks), vehicle->id, dest, (int)vehicle->parking_time,(int)(number_ticks-vehicle->initial_ticks),status);
   else //If the vehicle's state is VEHICLE_IN/PARK_FULL/PARK_CLOSED that means the vehicle doesn't have t_vida.
-    sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;      ? ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time, status);
+  sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;      ? ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time, status);
 
   //Writes the string Buffer to gerador.log with filedes "fd_gerador_log"
   write(fd_gerador_log,buffer,strlen(buffer));
@@ -112,31 +112,37 @@ void* func_vehicle(void* arg){
 
     fd_read = open(vehicle.fifo_name, O_RDONLY); //Blocks until some other process opens the same FIFO for writing
     if(fd_read != -1){
-      printf("Vou ler ID: %d\n", vehicle.id);
+      //Receives state value when the car enters the park
       read(fd_read,&state,sizeof(int));
+
       pthread_mutex_lock(&mutex);//When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
       write_to_log_file(&vehicle, state);//writes to file gerador.log vehicle's information
       pthread_mutex_unlock(&mutex);//Releases the lock and allow others thread to write to the file
-      printf("Recebi informação: %d, ID : %d\n",state, vehicle.id);
+
+      //Receives state value when the car exits the park
       read(fd_read,&state,sizeof(int));
     }
-    else printf("O parque esta fechado ID %d\n", vehicle.id);
   }
   else {//The Park is still closed!! Can't receive vehicles
-    printf("O parque ainda esta fechado\n");
-    sem_post(semaphore);
-    sem_close(semaphore);
-    state = 2;
-  }
 
-  unlink(vehicle.fifo_name); //deletes a the vehicle's fifo from the file system
-  pthread_mutex_lock(&mutex); //When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
-  write_to_log_file(&vehicle, state); //writes to file gerador.log vehicle's information
-  pthread_mutex_unlock(&mutex);//Releases the lock and allow others thread to write to the file
-  pthread_exit(0);
+  sem_post(semaphore);
+  sem_close(semaphore);
+
+  //When Park is closed, state have value of 2
+  state = PARK_CLOSED;
 }
 
-Direction get_car_direction(){
+unlink(vehicle.fifo_name); //deletes a the vehicle's fifo from the file system
+
+pthread_mutex_lock(&mutex); //When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
+write_to_log_file(&vehicle, state); //writes to file gerador.log vehicle's information
+pthread_mutex_unlock(&mutex);//Releases the lock and allow others thread to write to the file
+
+
+pthread_exit(0);
+}
+
+Direction get_car_direction(){ //Generates a random direction
   int r = rand() % 4;
 
   if(r==0)
@@ -149,7 +155,7 @@ Direction get_car_direction(){
     return WEST;
 }
 
-float get_car_parking_time(float u_clock){
+float get_car_parking_time(float u_clock){ //Generates a random parking_time
 
   float r;
   return r = ((rand() % 10)+1)*u_clock;
@@ -170,45 +176,40 @@ int get_tick_for_next_car(){
   return ticks_for_next_car;
 }
 
-int generate_car(float u_clock, int ticks){
+int generate_car(float u_clock, int ticks){ //Generates a car
 
   pthread_t tid;
-  //no final da funcao gerar a probabilidade
   Vehicle *vehicle = (Vehicle*)malloc(sizeof(Vehicle));
 
   vehicle->initial_ticks = ticks;
-  printf("ticks : %d\n", vehicle->initial_ticks);
-
   vehicle->direction=get_car_direction();
-  switch (vehicle->direction){
-    case NORTH:
-    printf("Direction North \n");
-    break;
-    case SOUTH:
-    printf("Direction South \n");
-    break;
-    case EAST:
-    printf("Direction East \n");
-    break;
-    case WEST:
-    printf("Direction West \n");
-    break;
-  }
   vehicle->id=id;
-  printf("ID %d\n",vehicle->id);
   vehicle->parking_time=get_car_parking_time(u_clock);
-  vehicle->parking_time_tikes=vehicle->parking_time/u_clock;
-  printf("Parking time %f\n",vehicle->parking_time);
+  vehicle->parking_time_ticks=vehicle->parking_time/u_clock;
   id++;
-  sprintf(vehicle->fifo_name,"%s%d","fifo",id);
-  printf("Fifo Name %s\n",vehicle->fifo_name);
+  sprintf(vehicle->fifo_name,"%s%d",VEHICLE_FIFO_NAME,id);
 
   //Create thread Vehicle
   if(pthread_create(&tid,NULL,func_vehicle,vehicle) != OK){
     perror("Gerador::Error on creating thread\n");
   }
 
-  return get_tick_for_next_car();
+  return get_tick_for_next_car(); //Generates the new probability of creating a new Vehicle
+
+}
+
+void preparing_log_file(){
+  //Reseting File Gerador.log
+  //fopen creates an empty file for writing.
+  //If a file with the same name already exists, its content is erased and the file is considered as a new empty file.
+  FILE* file1 = fopen(GERADOR_FILE_NAME,"w");
+  fclose(file1);
+
+  fd_gerador_log = open(GERADOR_FILE_NAME, O_WRONLY | O_CREAT,PERMISSONS);
+
+  char buffer[] = "t(ticks) ; id_viat ; destin ; t_estacion ; t_vida ; observ\n";
+
+  write(fd_gerador_log,buffer,strlen(buffer));
 
 }
 
@@ -220,34 +221,19 @@ int main(int argc, char* argv[]){
   float total_number_ticks=(time_generation*pow(10,3))/u_clock;
   int ticks_for_next_car=0;
 
-  //Reseting File Gerador.log
-  //fopen creates an empty file for writing.
-  //If a file with the same name already exists, its content is erased and the file is considered as a new empty file.
-  FILE* file1 = fopen(GERADOR_FILE_NAME,"w");
-  fclose(file1);
-
   if(argc != 3){
-    perror("Invalid number of arguments.\n\n");
+    perror("Invalid number of arguments. Should be used in this format:\ngerador <generation_time> <update_rate>\n");
   }
 
-  printf("total_number_ticks%f\n",total_number_ticks );
-
-  fd_gerador_log = open(GERADOR_FILE_NAME, O_WRONLY | O_CREAT  , PERMISSONS);
-
-  char buffer[] = "t(ticks) ; id_viat ; destin ; t_estacion ; t_vida ; observ\n";
-
-  write(fd_gerador_log,buffer,strlen(buffer));
+  preparing_log_file(); //Prepares gerador.log file
 
   do{
     if(ticks_for_next_car == 0)
-    //Generate one car
-    ticks_for_next_car=generate_car(u_clock, number_ticks);
+      ticks_for_next_car=generate_car(u_clock, number_ticks);  //Generates one car
     else ticks_for_next_car--;
-    //suspends execution of the calling thread for (at least) u_clock*10^3 microseconds.
-    usleep(u_clock*pow(10,3));
+    usleep(u_clock*pow(10,3));//suspends execution of the calling thread for (at least) u_clock*10^3 microseconds.
     number_ticks++;
   }while(total_number_ticks!=number_ticks);
 
   pthread_exit(NULL);
-  //return 0;
 }
