@@ -62,9 +62,9 @@ void write_to_log_file(Vehicle *vehicle, int state){
   }
   //If the Vehicle could enter the park and now is going out, then it is necessary to print information like t_vida
   if (state==VEHICLE_OUT)
-  sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ; %6d ; %s\n",(int)(vehicle->initial_ticks+vehicle->parking_time_ticks), vehicle->id, dest, (int)vehicle->parking_time,(int)(number_ticks-vehicle->initial_ticks),status);
+  sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ; %6d ; %s\n",(int)(vehicle->initial_ticks+vehicle->parking_time_ticks), vehicle->id, dest, (int)vehicle->parking_time_ticks,(int)(number_ticks-vehicle->initial_ticks),status);
   else //If the vehicle's state is VEHICLE_IN/PARK_FULL/PARK_CLOSED that means the vehicle doesn't have t_vida.
-  sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;      ? ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time, status);
+  sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;      ? ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time_ticks, status);
 
   //Writes the string Buffer to gerador.log with filedes "fd_gerador_log"
   ret_write = write(fd_gerador_log,buffer,strlen(buffer));
