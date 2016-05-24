@@ -41,7 +41,10 @@ void write_to_log_file(Vehicle *vehicle, int state){
     strcpy(status, "fechado");
     break;
     case VEHICLE_OUT:
-    strcpy(status, "saida");
+    if(park_close == 1)
+      strcpy(status, "encerrado");
+    else
+      strcpy(status, "saida");
     break;
     case PARKING:
     strcpy(status, "estacionamento");
@@ -238,7 +241,7 @@ int main(int argc, char* argv[]){
 
   int number_of_spots=atoi(argv[1]);
   int time_open=atoi(argv[2]);
-  
+
   //Initializing the park with the number of spots
   park_capacity = number_of_spots;
   unavailable_space = 0;
@@ -333,8 +336,6 @@ int main(int argc, char* argv[]){
   //pthread_join() function waits for the west thread to terminate
   if(pthread_join(tid_w, NULL) != OK)
   perror("Parque::Error on join thread\n");
-
-  write_to_log_file()
 
   sem_unlink(CONST_CHAR_NAME_SEMAPHORE);
 
