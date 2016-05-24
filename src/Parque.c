@@ -292,7 +292,7 @@ int main(int argc, char* argv[]){
 
   int number_of_spots=atoi(argv[1]);
   int time_open=atoi(argv[2]);
-  int ret_sem_wait, ret_sem_post, ret_write, ret_sem_unlink, ret_mutex_1_destroy, ret_mutex_file_destroy;
+  int ret_sem_wait, ret_sem_post, ret_write, ret_sem_unlink;
 
   //Initializing some global variables
   park_capacity = number_of_spots;//Initializing the park with the number of spots
@@ -405,18 +405,6 @@ int main(int argc, char* argv[]){
   if(ret_sem_unlink != OK){
     perror("Parque::Error on unlinking main semaphore ");
   }
-
-  ret_mutex_1_destroy = pthread_mutex_destroy(&mutex);
-  if(ret_mutex_1_destroy != OK){
-    perror("Parque::Error on destroying parque mutex ");
-  }
-
-  ret_mutex_file_destroy = pthread_mutex_destroy(&mutex);
-  if(ret_mutex_file_destroy != OK){
-    perror("Parque::Error on destroying parque mutex ");
-  }
-
-
 
   pthread_exit(NULL);
 }

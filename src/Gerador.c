@@ -260,7 +260,6 @@ int main(int argc, char* argv[]){
   float u_clock=atoi(argv[2]);
   float total_number_ticks=(time_generation*pow(10,3))/u_clock;
   int ticks_for_next_car=0;
-  int ret_mutex_destroy;
 
   if(argc != 3){
     perror("Gerador::Invalid number of arguments. Should be used in this format:\nGerador <generation_time> <update_rate>\n");
@@ -275,11 +274,6 @@ int main(int argc, char* argv[]){
     usleep(u_clock*pow(10,3));//suspends execution of the calling thread for (at least) u_clock*10^3 microseconds.
     number_ticks++;
   }while(total_number_ticks!=number_ticks);
-
-  ret_mutex_destroy = pthread_mutex_destroy(&mutex);
-  if(ret_mutex_destroy != OK){
-    perror("Gerador::Error on destroying gerador mutex ");
-  }
 
   pthread_exit(NULL);
 }
