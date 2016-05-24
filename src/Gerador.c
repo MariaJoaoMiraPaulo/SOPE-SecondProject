@@ -114,9 +114,9 @@ void* func_vehicle(void* arg){
     if(fd_read != -1){
       printf("Vou ler ID: %d\n", vehicle.id);
       read(fd_read,&state,sizeof(int));
-      pthread_mutex_lock(&mutex);
-      write_to_log_file(&vehicle, state);
-      pthread_mutex_unlock(&mutex);
+      pthread_mutex_lock(&mutex);//When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
+      write_to_log_file(&vehicle, state);//writes to file gerador.log vehicle's information
+      pthread_mutex_unlock(&mutex);//Releases the lock and allow others thread to write to the file
       printf("Recebi informação: %d, ID : %d\n",state, vehicle.id);
       read(fd_read,&state,sizeof(int));
     }
@@ -129,27 +129,24 @@ void* func_vehicle(void* arg){
     state = 2;
   }
 
-  unlink(vehicle.fifo_name);
-
-  pthread_mutex_lock(&mutex);
-  write_to_log_file(&vehicle, state);
-  pthread_mutex_unlock(&mutex);
-
+  unlink(vehicle.fifo_name); //deletes a the vehicle's fifo from the file system
+  pthread_mutex_lock(&mutex); //When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
+  write_to_log_file(&vehicle, state); //writes to file gerador.log vehicle's information
+  pthread_mutex_unlock(&mutex);//Releases the lock and allow others thread to write to the file
   pthread_exit(0);
 }
 
 Direction get_car_direction(){
-
   int r = rand() % 4;
 
   if(r==0)
-  return NORTH;
+    return NORTH;
   else if(r==1)
-  return SOUTH;
+    return SOUTH;
   else if(r==2)
-  return EAST;
+    return EAST;
   else
-  return WEST;
+    return WEST;
 }
 
 float get_car_parking_time(float u_clock){
