@@ -7,6 +7,7 @@
 #define VEHICLE_OUT 3
 #define PARKING 4
 #define OK 0
+#define ERROR -1
 #define FIFO_NAME_LENGTH 10
 #define STATUS_MAX_LENGTH 20
 #define FILE_LINE_MAX_LENGTH 100

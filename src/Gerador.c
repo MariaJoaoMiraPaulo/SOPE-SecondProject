@@ -26,6 +26,7 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //Write to the file named "gerador.log" all the vehicles' information
 void write_to_log_file(Vehicle *vehicle, int state){
+  int ret;
   char buffer[FILE_LINE_MAX_LENGTH];
   char dest[DEST_MAX_LENGTH];
   char status[STATUS_MAX_LENGTH];
@@ -66,7 +67,10 @@ void write_to_log_file(Vehicle *vehicle, int state){
   sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;      ? ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time, status);
 
   //Writes the string Buffer to gerador.log with filedes "fd_gerador_log"
-  write(fd_gerador_log,buffer,strlen(buffer));
+  ret = write(fd_gerador_log,buffer,strlen(buffer));
+  if(ret == OK){
+    perror("Error on writing to gerador log file ");
+  }
 
   strcpy(buffer, "");
 
@@ -78,14 +82,24 @@ void* func_vehicle(void* arg){
   Vehicle vehicle= *(Vehicle*) arg;
   int fd_read, fd_write;
   int state=0;
+  int ret_mkfifo, ret_sem_wait, ret_write, ret_sem_post, ret_unlink;
 
 
   sem_t *semaphore = sem_open(CONST_CHAR_NAME_SEMAPHORE, O_CREAT ,PERMISSONS,1);
+  if(semaphore == SEM_FAILED){  //testing for some error on opening the semaphore
+    perror("Error on opening semaphore ");
+  }
 
   //Creates her own Fifo
-  mkfifo(vehicle.fifo_name, PERMISSONS);
+  ret_mkfifo = mkfifo(vehicle.fifo_name, PERMISSONS);
+  if(ret_mkfifo != OK){
+    perror("Error on opening vehicle fifo ");
+  }
 
-  sem_wait(semaphore);
+  ret_sem_wait = sem_wait(semaphore);
+  if(ret_sem_wait != OK){
+    perror("Error on doing sem_wait ");
+  }
   switch (vehicle.direction){  //Opens the respective controller (depending to the direction loaded on the struct vehicle) to send the vehicle information to Park
     case NORTH:
     fd_write = open(FIFO_N, O_WRONLY | O_NONBLOCK); //if some process opened the FIFO for reading, returns the FIFO's descriptor if not, returns -1 (Error and FIFO could not be opened), which means the park is still closed
@@ -99,25 +113,33 @@ void* func_vehicle(void* arg){
     case WEST:
     fd_write = open(FIFO_W, O_WRONLY | O_NONBLOCK); //if some process opened the FIFO for reading, returns the FIFO's descriptor if not, returns -1 (Error and FIFO could not be opened), which means the park is still closed
     break;
+    default:
+    break;
   }
 
 
   //Verify the value of fd_write, to avoid the blocking when Park is still closed
-  if(fd_write != -1){
-    write(fd_write, &vehicle, sizeof(Vehicle)); //send Vehicle to Park's controller
+  if(fd_write != ERROR){
+    ret_write = write(fd_write, &vehicle, sizeof(Vehicle)); //send Vehicle to Park's controller
+    if(ret_write == OK){
+      perror("Error on writing to controller fifo ");
+    }
     close(fd_write);
 
-    sem_post(semaphore);
+    ret_sem_post =sem_post(semaphore);
+    if(ret_sem_post != OK){
+      perror("Error on doing sem_post to the semaphore ");
+    }
     sem_close(semaphore);
 
     fd_read = open(vehicle.fifo_name, O_RDONLY); //Blocks until some other process opens the same FIFO for writing
-    if(fd_read != -1){
+    if(fd_read != ERROR){
       //Receives state value when the car enters the park
       read(fd_read,&state,sizeof(int));
 
       pthread_mutex_lock(&mutex);//When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
-      write_to_log_file(&vehicle, state);//writes to file gerador.log vehicle's information
-      pthread_mutex_unlock(&mutex);//Releases the lock and allow others thread to write to the file
+      write_to_log_file(&vehicle, state);//writes to file gerador.log vehicle's state
+      pthread_mutex_unlock(&mutex);//Releases the lock and allows others thread to write to the file
 
       //Receives state value when the car exits the park
       read(fd_read,&state,sizeof(int));
@@ -125,14 +147,20 @@ void* func_vehicle(void* arg){
   }
   else {//The Park is still closed!! Can't receive vehicles
 
-  sem_post(semaphore);
+  ret_sem_post = sem_post(semaphore);
+  if(ret_sem_post != OK){
+    perror("Error on doing sem_post to the semaphore ");
+  }
   sem_close(semaphore);
 
   //When Park is closed, state have value of 2
   state = PARK_CLOSED;
 }
 
-unlink(vehicle.fifo_name); //deletes a the vehicle's fifo from the file system
+ret_unlink = unlink(vehicle.fifo_name); //deletes a the vehicle's fifo from the file system
+if(ret_unlink != OK){
+  perror("Error on unlinking the vehicle fifo ");
+}
 
 pthread_mutex_lock(&mutex); //When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
 write_to_log_file(&vehicle, state); //writes to file gerador.log vehicle's information
@@ -199,17 +227,29 @@ int generate_car(float u_clock, int ticks){ //Generates a car
 }
 
 void preparing_log_file(){
+
+  int ret_write;
+
   //Reseting File Gerador.log
   //fopen creates an empty file for writing.
   //If a file with the same name already exists, its content is erased and the file is considered as a new empty file.
   FILE* file1 = fopen(GERADOR_FILE_NAME,"w");
+  if(file1 == NULL){
+    perror("Error on opening gerador file log ");
+  }
   fclose(file1);
 
   fd_gerador_log = open(GERADOR_FILE_NAME, O_WRONLY | O_CREAT,PERMISSONS);
+  if(fd_gerador_log < OK){
+    perror("Error on opening gerador file log ");
+  }
 
   char buffer[] = "t(ticks) ; id_viat ; destin ; t_estacion ; t_vida ; observ\n";
 
-  write(fd_gerador_log,buffer,strlen(buffer));
+  ret_write = write(fd_gerador_log,buffer,strlen(buffer));
+  if(ret_write == OK){
+    perror("Error on writing to gerador file log ");
+  }
 
 }
 
