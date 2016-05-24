@@ -238,7 +238,7 @@ int main(int argc, char* argv[]){
 
   int number_of_spots=atoi(argv[1]);
   int time_open=atoi(argv[2]);
-  
+
   //Initializing the park with the number of spots
   park_capacity = number_of_spots;
   unavailable_space = 0;
