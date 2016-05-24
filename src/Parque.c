@@ -236,14 +236,23 @@ void* func_west(void* arg){
   pthread_exit(0);
 }
 
+void preparing_log_file(){
+  //opening the file "parque.log" to write vehicles information
+  fd_parque_log = open(PARQUE_FILE_NAME, O_WRONLY | O_CREAT  , PERMISSONS);
+
+  char buffer[] = "t(ticks) ; nlug ; id_viat ; observ\n";
+
+  write(fd_parque_log,buffer,strlen(buffer));
+}
+
 
 int main(int argc, char* argv[]){
 
   int number_of_spots=atoi(argv[1]);
   int time_open=atoi(argv[2]);
 
-  //Initializing the park with the number of spots
-  park_capacity = number_of_spots;
+
+  park_capacity = number_of_spots;//Initializing the park with the number of spots
   unavailable_space = 0;
   pthread_t tid_n, tid_s, tid_e, tid_w;
 
@@ -269,12 +278,7 @@ int main(int argc, char* argv[]){
   //The park is open
   park_close = 0;
 
-  //opening the file "parque.log" to write vehicles information
-  fd_parque_log = open(PARQUE_FILE_NAME, O_WRONLY | O_CREAT  , PERMISSONS);
-
-  char buffer[] = "t(ticks) ; nlug ; id_viat ; observ\n";
-
-  write(fd_parque_log,buffer,strlen(buffer));
+  preparing_log_file();//Prepares parque.log file
 
 
   //Creating the thread controller on the north pole of the park
@@ -291,17 +295,18 @@ int main(int argc, char* argv[]){
   perror("Parque::Error on creating thread\n");
 
   sleep(time_open);
-  printf("Vou acabar\n");
+  printf("Park Close!\n");
 
   //The park is closed
   park_close = 1;
 
-  int fd_north = open(FIFO_N, O_WRONLY);
-  int fd_south = open(FIFO_S, O_WRONLY);
-  int fd_east = open(FIFO_E, O_WRONLY);
-  int fd_west = open(FIFO_W, O_WRONLY);
+  int fd_north = open(FIFO_N, O_WRONLY);//Opens North controller's FIFO in write mode
+  int fd_south = open(FIFO_S, O_WRONLY);//Opens South controller's FIFO in write mode
+  int fd_east = open(FIFO_E, O_WRONLY); //Opens East controller's FIFO in write mode
+  int fd_west = open(FIFO_W, O_WRONLY); //Opens West controller's FIFO in write mode
 
 
+  //Semaphore used to ensure that the thread vehicle doesn't try to send another vehicle to the controllers at the same time of the last vehicle 
   sem_wait(semaphore);
 
   //Send to north controller a vehicle that tells the park is closed (last_vehicle has id -1)
