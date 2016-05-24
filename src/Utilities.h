@@ -25,7 +25,7 @@ typedef struct {
   Direction direction;
   int id;
   float parking_time;
-  float parking_time_ticks;
+  float parking_time_ticks; //Parking_time_ticks allow us to access to number of ticks (since the begining of the ptogram) at the file Parque.c
   char fifo_name[FIFO_NAME_LENGTH] ;
   int initial_ticks;
 }Vehicle;

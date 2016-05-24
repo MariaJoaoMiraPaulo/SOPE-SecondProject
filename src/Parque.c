@@ -25,7 +25,7 @@ int unavailable_space; //number of unavailable car-parking spaces on park
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-
+//Write to the file named "parque.log" all the vehicles'information
 void write_to_log_file(Vehicle *vehicle, int state){
   char buffer[FILE_LINE_MAX_LENGTH];
   char status[STATUS_MAX_LENGTH];
@@ -58,55 +58,54 @@ void write_to_log_file(Vehicle *vehicle, int state){
 
 }
 
-void* vehicle_guide(void* arg){
+void* vehicle_guide(void* arg){ //Responsible for guide the vehicle and atribute a specific value to the variable state of the vehicle
   Vehicle vehicle= *(Vehicle*) arg;
   void* ret=NULL;
   int state;
   int fd_write;
 
-  fd_write=open(vehicle.fifo_name,O_WRONLY);
-  //verify park state
-  sleep(1);
-  printf("ID VEICULO:%d\n",vehicle.id);
+  fd_write=open(vehicle.fifo_name,O_WRONLY); //Opens the vehicle's own FIFO in Write mode
 
-  //Mutex that controlls the number of available spaces to park a car. The mutex lock all the others threads when acess to varibles unavailable_space and park_capacity
-  pthread_mutex_lock(&mutex);
+
+  pthread_mutex_lock(&mutex); //Mutex that controlls the number of available spaces to park a car. The mutex lock all the others threads when they try to acess to varibles unavailable_space and park_capacity
+  //Verifying park state
   if(unavailable_space<park_capacity && !park_close){
     state=VEHICLE_IN;
-    unavailable_space++;
-    write(fd_write,&state,sizeof(int));
-    pthread_mutex_lock(&file_mutex);
-    write_to_log_file(&vehicle, PARKING);
-    pthread_mutex_unlock(&file_mutex);
-    printf("Entrei no parque!! ID %d capacidade %d, lugares %d\n",vehicle.id, park_capacity, unavailable_space);
-    pthread_mutex_unlock(&mutex);
-    usleep(vehicle.parking_time*pow(10,3));
-    unavailable_space--;
+    unavailable_space++; //Increments the number of unavailable Spaces
+    write(fd_write,&state,sizeof(int)); //Send the variable state to vehicle's own FIFO on thread Vehicle, on Gerador.c
+
+    pthread_mutex_lock(&file_mutex);//When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
+    write_to_log_file(&vehicle, PARKING);//writes to file parque.log vehicle's state (only if the vehicle is entering the park)
+    pthread_mutex_unlock(&file_mutex);//Releases the lock and allows others thread to write to the file
+
+
+    pthread_mutex_unlock(&mutex);//Releases the lock and allows others threads to acess to unavailable_space and park_capacity varibles
+
+    //pow(10,3) to convert milliseconds to microseconds
+    usleep(vehicle.parking_time*pow(10,3)); //Simulating Vehicle's parking_time
     state=VEHICLE_OUT;
+    unavailable_space--;
   }
   else if(park_close){
     pthread_mutex_unlock(&mutex);
-    printf("Parque Fechado!!!!\n");
     state=PARK_CLOSED;
   }
   else {
     pthread_mutex_unlock(&mutex);
     state=PARK_FULL;
-    printf("Parque Cheio!!!!\n");
   }
-  printf("ID VEICULO:%d  State: %d\n", vehicle.id, state);
   write(fd_write,&state,sizeof(int));
 
-  pthread_mutex_lock(&file_mutex);
-  write_to_log_file(&vehicle, state);
-  pthread_mutex_unlock(&file_mutex);
+  pthread_mutex_lock(&file_mutex);//When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
+  write_to_log_file(&vehicle, state);//writes to file parque.log vehicle's state (if the vehicle is exiting the park, the park is closed or full)
+  pthread_mutex_unlock(&file_mutex);//Releases the lock and allows others thread to write to the file
 
   close(fd_write);
 
   return ret;
 }
 
-//Function that the thread with tid_n executes when is created
+//Function that the thread with pthread_t tid_n executes when is created
 void* func_north(void* arg){
   void* ret = NULL;
   int fd_read;
@@ -115,37 +114,27 @@ void* func_north(void* arg){
   pthread_t tid_n;
 
   mkfifo(FIFO_N, PERMISSONS);
-
-  printf("Vou abrir o fifo\n");
-
-  fd_read = open(FIFO_N, O_RDONLY | O_NONBLOCK);
-  //open on write mode to avoid busy waiting
-  open(FIFO_N, O_WRONLY);
-
-  printf("Já abri os fifos\n");
+  fd_read = open(FIFO_N, O_RDONLY | O_NONBLOCK); //Opens fifo in read mode
+  open(FIFO_N, O_WRONLY); //Opens fifo in write mode to avoid busy waiting
 
   while(1){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(vehicle.id == LAST_VEHICLE_ID)
-    break;
-    else  if(read_ret > 0){
-      printf("PARQUE NORTE ID : %d\n", vehicle.id);
+    read_ret = read(fd_read, &vehicle, sizeof(Vehicle)); //Reads one vehicle
+    if(vehicle.id == LAST_VEHICLE_ID) //Tests if the last vehicle loaded is the last vehicle (with id==-1)
+      break;
+    else  if(read_ret > 0){ //read_ret means the number os bytes actually read 
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
       perror("Func_North::Error on creating thread\n");
     }
   }
 
-  printf("Norte: vou acabar\n");
-
   close(fd_read);
-
   unlink(FIFO_N);
 
   return ret;
 
 }
 
-//Function that the thread with tid_s executes when is created
+//Function that the thread with pthread_t tid_s executes when is created
 void* func_south(void* arg){
 
   int fd_read;
@@ -159,7 +148,7 @@ void* func_south(void* arg){
   printf("Vou abrir o fifo\n");
 
   fd_read = open(FIFO_S, O_RDONLY | O_NONBLOCK);
-  //open on write mode to avoid busy waiting
+  //open in write mode to avoid busy waiting
   open(FIFO_S, O_WRONLY);
 
   printf("Já abri os fifos\n");
@@ -184,7 +173,7 @@ void* func_south(void* arg){
   pthread_exit(0);
 }
 
-//Function that the thread with tid_e executes when is created
+//Function that the thread with pthread_t tid_e executes when is created
 void* func_east(void* arg){
   int fd_read;
   Vehicle vehicle;
@@ -197,7 +186,7 @@ void* func_east(void* arg){
   printf("Vou abrir o fifo\n");
 
   fd_read = open(FIFO_E, O_RDONLY | O_NONBLOCK);
-  //open on write mode to avoid busy waiting
+  //open in write mode to avoid busy waiting
   open(FIFO_E, O_WRONLY);
 
   printf("Já abri os fifos\n");
@@ -222,7 +211,7 @@ void* func_east(void* arg){
   pthread_exit(0);
 }
 
-//Function that the thread with tid_w executes when is created
+//Function that the thread with pthread_t tid_w executes when is created
 void* func_west(void* arg){
   int fd_read;
   Vehicle vehicle;
@@ -234,7 +223,7 @@ void* func_west(void* arg){
   printf("Vou abrir o fifo\n");
 
   fd_read = open(FIFO_W, O_RDONLY | O_NONBLOCK);
-  //open on write mode to avoid busy waiting
+  //open in write mode to avoid busy waiting
   open(FIFO_W, O_WRONLY);
 
   printf("Já abri os fifos\n");
@@ -359,9 +348,7 @@ int main(int argc, char* argv[]){
   if(pthread_join(tid_w, NULL) != OK)
   perror("Parque::Error on join thread\n");
 
-  //Wait for all the vehicles till the park is empty, then end the program
-
-  //  while(unavailable_space!=0){}
+  write_to_log_file()
 
   sem_unlink(CONST_CHAR_NAME_SEMAPHORE);
 
