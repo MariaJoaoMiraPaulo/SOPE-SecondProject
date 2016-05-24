@@ -26,7 +26,7 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //Write to the file named "gerador.log" all the vehicles' information
 void write_to_log_file(Vehicle *vehicle, int state){
-  int ret;
+  int ret_write;
   char buffer[FILE_LINE_MAX_LENGTH];
   char dest[DEST_MAX_LENGTH];
   char status[STATUS_MAX_LENGTH];
@@ -67,9 +67,9 @@ void write_to_log_file(Vehicle *vehicle, int state){
   sprintf(buffer, "%-8d ; %7d ;    %s   ; %10d ;      ? ; %s\n",vehicle->initial_ticks, vehicle->id, dest, (int)vehicle->parking_time, status);
 
   //Writes the string Buffer to gerador.log with filedes "fd_gerador_log"
-  ret = write(fd_gerador_log,buffer,strlen(buffer));
-  if(ret == OK){
-    perror("Error on writing to gerador log file ");
+  ret_write = write(fd_gerador_log,buffer,strlen(buffer));
+  if(ret_write == OK){
+    perror("write_to_log_file::Error on writing to gerador log file ");
   }
 
   strcpy(buffer, "");
@@ -87,18 +87,18 @@ void* func_vehicle(void* arg){
 
   sem_t *semaphore = sem_open(CONST_CHAR_NAME_SEMAPHORE, O_CREAT ,PERMISSONS,1);
   if(semaphore == SEM_FAILED){  //testing for some error on opening the semaphore
-    perror("Error on opening semaphore ");
+    perror("func_vehicle::Error on opening semaphore ");
   }
 
   //Creates her own Fifo
   ret_mkfifo = mkfifo(vehicle.fifo_name, PERMISSONS);
   if(ret_mkfifo != OK){
-    perror("Error on opening vehicle fifo ");
+    perror("func_vehicle::Error on opening vehicle fifo ");
   }
 
   ret_sem_wait = sem_wait(semaphore);
   if(ret_sem_wait != OK){
-    perror("Error on doing sem_wait ");
+    perror("func_vehicle::Error on doing sem_wait ");
   }
   switch (vehicle.direction){  //Opens the respective controller (depending to the direction loaded on the struct vehicle) to send the vehicle information to Park
     case NORTH:
@@ -122,13 +122,13 @@ void* func_vehicle(void* arg){
   if(fd_write != ERROR){
     ret_write = write(fd_write, &vehicle, sizeof(Vehicle)); //send Vehicle to Park's controller
     if(ret_write == OK){
-      perror("Error on writing to controller fifo ");
+      perror("func_vehicle::Error on writing to controller fifo ");
     }
     close(fd_write);
 
     ret_sem_post =sem_post(semaphore);
     if(ret_sem_post != OK){
-      perror("Error on doing sem_post to the semaphore ");
+      perror("func_vehicle::Error on doing sem_post to the semaphore ");
     }
     sem_close(semaphore);
 
@@ -149,7 +149,7 @@ void* func_vehicle(void* arg){
 
   ret_sem_post = sem_post(semaphore);
   if(ret_sem_post != OK){
-    perror("Error on doing sem_post to the semaphore ");
+    perror("func_vehicle::Error on doing sem_post to the semaphore ");
   }
   sem_close(semaphore);
 
@@ -159,7 +159,7 @@ void* func_vehicle(void* arg){
 
 ret_unlink = unlink(vehicle.fifo_name); //deletes a the vehicle's fifo from the file system
 if(ret_unlink != OK){
-  perror("Error on unlinking the vehicle fifo ");
+  perror("func_vehicle::Error on unlinking the vehicle fifo ");
 }
 
 pthread_mutex_lock(&mutex); //When the lock is set, no other thread can access the locked region of code. It is important to write to file only one by one to avoid lost of information
@@ -167,7 +167,7 @@ write_to_log_file(&vehicle, state); //writes to file gerador.log vehicle's infor
 pthread_mutex_unlock(&mutex);//Releases the lock and allow others thread to write to the file
 
 
-pthread_exit(0);
+pthread_exit(NULL);
 }
 
 Direction get_car_direction(){ //Generates a random direction
@@ -219,7 +219,7 @@ int generate_car(float u_clock, int ticks){ //Generates a car
 
   //Create thread Vehicle
   if(pthread_create(&tid,NULL,func_vehicle,vehicle) != OK){
-    perror("Gerador::Error on creating thread\n");
+    perror("generate_car::Error on creating thread\n");
   }
 
   return get_tick_for_next_car(); //Generates the new probability of creating a new Vehicle
@@ -235,20 +235,20 @@ void preparing_log_file(){
   //If a file with the same name already exists, its content is erased and the file is considered as a new empty file.
   FILE* file1 = fopen(GERADOR_FILE_NAME,"w");
   if(file1 == NULL){
-    perror("Error on opening gerador file log ");
+    perror("preparing_log_file::Error on opening gerador file log ");
   }
   fclose(file1);
 
   fd_gerador_log = open(GERADOR_FILE_NAME, O_WRONLY | O_CREAT,PERMISSONS);
   if(fd_gerador_log < OK){
-    perror("Error on opening gerador file log ");
+    perror("preparing_log_file::Error on opening gerador file log ");
   }
 
   char buffer[] = "t(ticks) ; id_viat ; destin ; t_estacion ; t_vida ; observ\n";
 
   ret_write = write(fd_gerador_log,buffer,strlen(buffer));
   if(ret_write == OK){
-    perror("Error on writing to gerador file log ");
+    perror("preparing_log_file::Error on writing to gerador file log ");
   }
 
 }
@@ -260,9 +260,10 @@ int main(int argc, char* argv[]){
   float u_clock=atoi(argv[2]);
   float total_number_ticks=(time_generation*pow(10,3))/u_clock;
   int ticks_for_next_car=0;
+  int ret_mutex_destroy;
 
   if(argc != 3){
-    perror("Invalid number of arguments. Should be used in this format:\ngerador <generation_time> <update_rate>\n");
+    perror("Gerador::Invalid number of arguments. Should be used in this format:\nGerador <generation_time> <update_rate>\n");
   }
 
   preparing_log_file(); //Prepares gerador.log file
@@ -274,6 +275,11 @@ int main(int argc, char* argv[]){
     usleep(u_clock*pow(10,3));//suspends execution of the calling thread for (at least) u_clock*10^3 microseconds.
     number_ticks++;
   }while(total_number_ticks!=number_ticks);
+
+  ret_mutex_destroy = pthread_mutex_destroy(&mutex);
+  if(ret_mutex_destroy != OK){
+    perror("Gerador::Error on destroying gerador mutex ");
+  }
 
   pthread_exit(NULL);
 }
