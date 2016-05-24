@@ -121,7 +121,7 @@ void* func_north(void* arg){
     read_ret = read(fd_read, &vehicle, sizeof(Vehicle)); //Reads one vehicle
     if(vehicle.id == LAST_VEHICLE_ID) //Tests if the last vehicle loaded is the last vehicle (with id==-1)
       break;
-    else  if(read_ret > 0){ //read_ret means the number os bytes actually read 
+    else  if(read_ret > 0){ //return a non-negative integer indicating the number of bytes actually read
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
       perror("Func_North::Error on creating thread\n");
     }
@@ -129,9 +129,7 @@ void* func_north(void* arg){
 
   close(fd_read);
   unlink(FIFO_N);
-
   return ret;
-
 }
 
 //Function that the thread with pthread_t tid_s executes when is created
@@ -147,25 +145,19 @@ void* func_south(void* arg){
 
   printf("Vou abrir o fifo\n");
 
-  fd_read = open(FIFO_S, O_RDONLY | O_NONBLOCK);
-  //open in write mode to avoid busy waiting
-  open(FIFO_S, O_WRONLY);
+  fd_read = open(FIFO_S, O_RDONLY | O_NONBLOCK); //Opens fifo in read mode
 
-  printf("Já abri os fifos\n");
+  open(FIFO_S, O_WRONLY); //Opens fifo in write mode to avoid busy waiting
 
   while(1){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(vehicle.id == LAST_VEHICLE_ID)
+    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));//Reads one vehicle
+    if(vehicle.id == LAST_VEHICLE_ID)//Tests if the last vehicle loaded is the last vehicle (with id==-1)
     break;
-    else  if(read_ret > 0){
-      printf("PARQUE SUL ID : %d\n", vehicle.id);
+    else  if(read_ret > 0){ //return a non-negative integer indicating the number of bytes actually read
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
       perror("Func_South::Error on creating thread\n");
     }
   }
-
-  printf("Sul: vou acabar\n");
-
   close(fd_read);
 
   unlink(FIFO_S);
@@ -185,25 +177,21 @@ void* func_east(void* arg){
 
   printf("Vou abrir o fifo\n");
 
-  fd_read = open(FIFO_E, O_RDONLY | O_NONBLOCK);
-  //open in write mode to avoid busy waiting
-  open(FIFO_E, O_WRONLY);
+  fd_read = open(FIFO_E, O_RDONLY | O_NONBLOCK); //Opens fifo in read mode
+
+  open(FIFO_E, O_WRONLY); //Opens fifo in write mode to avoid busy waiting
 
   printf("Já abri os fifos\n");
 
   while(1){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(vehicle.id == -1)
+    read_ret = read(fd_read, &vehicle, sizeof(Vehicle)); //Reads one vehicle
+    if(vehicle.id == -1) //Tests if the last vehicle loaded is the last vehicle (with id==-1)
     break;
-    else  if(read_ret > 0){
-      printf("PARQUE ESTE ID : %d\n", vehicle.id);
+    else  if(read_ret > 0){//return a non-negative integer indicating the number of bytes actually read
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
       perror("Func_East::Error on creating thread\n");
     }
   }
-
-  printf("Este: vou acabar\n");
-
   close(fd_read);
 
   unlink(FIFO_E);
@@ -229,17 +217,14 @@ void* func_west(void* arg){
   printf("Já abri os fifos\n");
 
   while(1){
-    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));
-    if(vehicle.id == -1)
+    read_ret = read(fd_read, &vehicle, sizeof(Vehicle));  //Reads one vehicle
+    if(vehicle.id == -1) //Tests if the last vehicle loaded is the last vehicle (with id==-1)
     break;
-    else  if(read_ret > 0){
-      printf("PARQUE OESTE ID : %d\n", vehicle.id);
+    else  if(read_ret > 0){ //return a non-negative integer indicating the number of bytes actually read
       if(pthread_create(&tid_n,NULL,vehicle_guide,&vehicle) != OK)
       perror("Func_West::Error on creating thread\n");
     }
   }
-
-  printf("Oeste: vou acabar\n");
 
   close(fd_read);
 
@@ -253,6 +238,7 @@ int main(int argc, char* argv[]){
 
   int number_of_spots=atoi(argv[1]);
   int time_open=atoi(argv[2]);
+  
   //Initializing the park with the number of spots
   park_capacity = number_of_spots;
   unavailable_space = 0;
